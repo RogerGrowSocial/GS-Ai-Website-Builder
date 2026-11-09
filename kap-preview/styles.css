@@ -279,3 +279,15 @@
 @media(max-width:880px){.fitLayout{grid-template-columns:1fr;gap:30px}.fitIntroduction h2{max-width:750px}.fitVisual{display:none}}
 @media(max-width:540px){.fitSection{padding:55px 0}.fitIntroduction h2{font-size:36px}.fitWidget{padding:25px 20px}.fitFields{gap:14px}.fitWidgetHeader{flex-wrap:wrap}.fitFields span{min-height:32px}.fitFields input{font-size:16px}.fitFull select{font-size:16px}}
 @media(max-width:390px){.fitFields{grid-template-columns:1fr}.fitFields span{min-height:0}}
+
+/* Supporting evidence, mobile product next step */
+.mediaSection{padding:80px 0 90px;background:#fff}.mediaInfoGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.mediaInfoCard{border:1px solid #e4eae2;padding:32px 29px;min-height:280px;display:flex;flex-direction:column;align-items:flex-start;background:#fafbf8}
+.mediaInfoIcon{height:48px;width:48px;display:grid;place-items:center;background:#e9efe4;color:#658562;margin-bottom:25px}.mediaInfoIcon svg{width:24px;height:24px}
+.mediaInfoCard h3{font-size:22px;margin:10px 0 14px}.mediaInfoCard p{font-size:13px;color:#657567;line-height:1.85;margin-bottom:24px}
+.mediaPending,.mediaInfoCard .textlink{margin-top:auto;font-size:11px;color:#849285}.mediaInfoCard .textlink{color:#4b7451}
+.productMobileBar{display:none}.productMobileBar small{font-size:10px;color:#657467}.productMobileBar strong{display:block;font:800 20px Manrope,sans-serif}
+@media(max-width:830px){.mediaInfoGrid{grid-template-columns:1fr 1fr}.mediaInfoCard:last-child{grid-column:span 2}}
+@media(max-width:640px){.mediaSection{padding:55px 0}.mediaInfoGrid{grid-template-columns:1fr}.mediaInfoCard{min-height:190px}.mediaInfoCard:last-child{grid-column:auto}
+.productMobileBar{position:fixed;bottom:0;left:0;right:0;z-index:66;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;padding:10px 17px max(10px,env(safe-area-inset-bottom));border-top:1px solid #dae5d8;box-shadow:0 -7px 30px #172b1c13}.productMobileBar .btn{padding:9px 12px;min-height:45px;font-size:11px;gap:8px}.productMobileBar .btn svg{width:16px}.productMobileBar>div{white-space:nowrap}body:has(.productMobileBar) .footer{padding-bottom:120px}body.lock .productMobileBar{display:none}}
+@media(max-width:370px){.productMobileBar .btn{font-size:10px;padding:10px}.productMobileBar strong{font-size:18px}}
