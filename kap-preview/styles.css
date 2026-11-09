@@ -86,3 +86,30 @@
 @media(max-width:950px){.proDetail{grid-template-columns:1fr 1fr;gap:30px}.proBigPhoto{min-height:420px}.proPurchase h1{font-size:37px}.proInfoLead{gap:30px}}
 @media(max-width:820px){.proDetail{grid-template-columns:1fr;padding-bottom:65px}.proBigPhoto{min-height:500px}.proInfoLead{grid-template-columns:1fr;gap:25px}.proInfoGrid{gap:35px}.proMoreInfo{padding:65px 0}}
 @media(max-width:540px){.proBigPhoto{min-height:315px}.proDetail{padding-top:22px;gap:18px}.proPurchase h1{font-size:35px}.proInfoLead{margin-bottom:45px}.proInfoGrid{grid-template-columns:1fr}.proActionRow{gap:7px}.proActionRow .qty button{padding-inline:12px}.proActionRow .btn{font-size:11px;padding:10px}.proInstall{padding:24px}.proMoreInfo{padding:50px 0}.proThumbnails button{width:90px;height:72px}}
+
+/* Editorial landing pages: helpful, credible, responsive */
+.brandStory{padding:85px 0}.storyLayout{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.storyLayout h2,.contactLead h2,.legalLayout h2{font-size:clamp(34px,3.8vw,53px);margin:24px 0 18px}
+.storyLayout p,.contactLead>p,.legalLayout p{color:#647568;font-size:15px;line-height:1.95;margin-bottom:18px}
+.storyLayout .btn{margin-top:16px}.storyImage{min-height:445px;position:relative;overflow:hidden}
+.storyImage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:55% 50%}
+.infoPillars{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.infoPillar{background:#fff;min-height:260px;padding:36px 30px;border:1px solid #e6eae2}
+.infoPillar>svg{height:34px;width:34px;color:#6f9169;margin-bottom:26px}
+.infoPillar h3{font-size:22px;margin-bottom:14px}.infoPillar p{font-size:13px;color:#687769;line-height:1.85}
+.serviceCTA{display:flex;align-items:center;justify-content:space-between;gap:45px;background:#eef3e9;padding:42px 46px}
+.serviceCTA h2{font-size:clamp(27px,3vw,42px);margin:13px 0;max-width:680px}
+.serviceCTA p{font-size:13px;color:#68796b;max-width:650px}
+.serviceCTA .btn{white-space:nowrap;flex-shrink:0}
+.contactLayout{display:grid;grid-template-columns:1fr 1fr;gap:65px}
+.contactLead>p{max-width:580px}.contactMessage{display:flex;gap:16px;margin-top:38px;padding:28px 25px;background:#f1f5ee}
+.contactMessage>svg{height:28px;width:28px;color:#6b8963;flex-shrink:0}.contactMessage strong{font-size:14px}.contactMessage p{font-size:12px;color:#718176;margin-top:8px}
+.contactCards{display:grid;gap:12px}.contactCards>a{display:grid;grid-template-columns:38px 1fr;column-gap:17px;background:#f7f8f4;padding:23px;border:1px solid #ebeee8;transition:background .2s,border-color .2s}
+.contactCards>a:hover{background:#ecf2e5;border-color:#bed0b7}
+.contactCards svg{grid-row:1 / span 3;width:30px;height:30px;color:#789a70}
+.contactCards h3{font-size:18px}.contactCards p{color:#6d796e;font-size:12px;margin:9px 0}
+.contactCards span{font-size:11px;font-weight:800;color:#3b6040}
+.legalLayout{max-width:840px;margin:auto;padding:20px 0 80px}.legalLayout .btn{margin-top:16px}
+@media(max-width:900px){.storyLayout{gap:30px}.contactLayout{gap:25px}.infoPillar{padding:25px}.serviceCTA{padding:35px}}
+@media(max-width:720px){.brandStory{padding:55px 0}.storyLayout,.contactLayout{grid-template-columns:1fr}.storyImage{min-height:340px}.infoPillars{grid-template-columns:1fr;gap:10px}.infoPillar{min-height:0;padding:25px}.infoPillar>svg{margin-bottom:13px}.serviceCTA{display:block}.serviceCTA .btn{margin-top:25px}.contactMessage{margin-top:23px}.legalLayout{padding-bottom:40px}}
+@media(max-width:540px){.storyImage{min-height:255px}.contactCards>a{padding:19px}.serviceCTA{padding:28px}.storyLayout h2,.contactLead h2,.legalLayout h2{font-size:34px}}
