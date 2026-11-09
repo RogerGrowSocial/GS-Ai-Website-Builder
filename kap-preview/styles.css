@@ -291,3 +291,10 @@
 @media(max-width:640px){.mediaSection{padding:55px 0}.mediaInfoGrid{grid-template-columns:1fr}.mediaInfoCard{min-height:190px}.mediaInfoCard:last-child{grid-column:auto}
 .productMobileBar{position:fixed;bottom:0;left:0;right:0;z-index:66;display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fff;padding:10px 17px max(10px,env(safe-area-inset-bottom));border-top:1px solid #dae5d8;box-shadow:0 -7px 30px #172b1c13}.productMobileBar .btn{padding:9px 12px;min-height:45px;font-size:11px;gap:8px}.productMobileBar .btn svg{width:16px}.productMobileBar>div{white-space:nowrap}body:has(.productMobileBar) .footer{padding-bottom:120px}body.lock .productMobileBar{display:none}}
 @media(max-width:370px){.productMobileBar .btn{font-size:10px;padding:10px}.productMobileBar strong{font-size:18px}}
+
+/* Privacy-first analytics choice. No analytics are sent without explicit opt-in. */
+.kapConsent{position:fixed;bottom:23px;left:23px;z-index:100;background:#fff;color:#24362a;box-shadow:0 16px 70px #101d1742;border:1px solid #dee6da;padding:22px 25px;width:min(480px,calc(100vw - 46px));display:flex;flex-direction:column;gap:18px}
+.kapConsent strong{font-size:14px;line-height:1.5;display:block}.kapConsent p{font-size:12px;color:#6a7a6d;line-height:1.8;margin-top:8px}
+.kapConsentActions{display:flex;gap:10px;flex-wrap:wrap}.kapConsentActions button{padding:11px 15px;font-size:12px;font-weight:800;border:1px solid #d6e0d5;background:#fff;color:#375039;flex:1}
+.kapConsentActions button:last-child{background:#243a2b;border-color:#243a2b;color:white}
+.kapConsentActions button:hover{filter:brightness(.95)}@media(max-width:540px){.kapConsent{bottom:12px;left:12px;width:calc(100vw - 24px);padding:17px 18px}.kapConsentActions button{font-size:11px;padding:10px}}
