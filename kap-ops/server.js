@@ -11,10 +11,8 @@ const dbUrl = process.env.DATABASE_URL;
 let pool = dbUrl ? new pg.Pool({ connectionString: dbUrl, ssl: /localhost|127\.0\.0\.1/.test(dbUrl) ? false : { rejectUnauthorized: false }, max: 8 }) : null;
 const demoMode = process.env.KAP_DEMO_MODE === 'true';
 if(demoMode){
-  const { PGlite } = await import('@electric-sql/pglite');
-  const demoDb = new PGlite();
-  const demoQuery=(sql,params=[])=>!params.length&&sql.includes('CREATE TABLE')?demoDb.exec(sql):demoDb.query(sql,params);
-  pool={query:demoQuery,connect:async()=>({query:demoQuery,release(){}})};
+  const { createDemoPool } = await import('./demo-db.js');
+  pool=createDemoPool();
 }
 const RATE = new Map();
 const ROLES = ['owner', 'manager', 'support', 'fulfillment'];
