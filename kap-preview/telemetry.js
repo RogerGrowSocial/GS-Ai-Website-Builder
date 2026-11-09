@@ -21,7 +21,16 @@
     if(choice!=="granted")return false;
     w.dataLayer=w.dataLayer||[];
     var d={event:name};
-    Object.keys(event).forEach(function(k){if(k!=="event"&&k!=="timestamp")d[k]=event[k]});
+    var commerce=["view_item","view_item_list","select_item","add_to_cart","remove_from_cart","view_cart","begin_checkout","purchase","refund"].includes(name);
+    if(commerce){
+      var cleanItems=Array.isArray(safe.items)?safe.items.filter(function(i){return i&&typeof i.item_id==="string"}).slice(0,30).map(function(i){return {item_id:String(i.item_id),item_name:String(i.item_name||i.item_id),price:Number(i.price||0),quantity:Math.max(1,Number(i.quantity||1))}}):[];
+      if(!cleanItems.length&&safe.item_id)cleanItems=[{item_id:String(safe.item_id),item_name:String(safe.item_name||safe.item_id),price:Number(safe.price||0),quantity:Math.max(1,Number(safe.quantity||1))}];
+      d.ecommerce={currency:String(safe.currency||"EUR"),value:Number(safe.value||0),items:cleanItems};
+      if(name==="purchase"||name==="refund")return false; // server-only; never let the browser invent financial conversions
+      w.dataLayer.push({ecommerce:null});
+    }else{
+      Object.keys(event).forEach(function(k){if(k!=="event"&&k!=="timestamp")d[k]=event[k]});
+    }
     w.dataLayer.push(d);
     return true;
   }
