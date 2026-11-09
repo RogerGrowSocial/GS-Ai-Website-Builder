@@ -9,6 +9,13 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 10000);
 const dbUrl = process.env.DATABASE_URL;
 let pool = dbUrl ? new pg.Pool({ connectionString: dbUrl, ssl: /localhost|127\.0\.0\.1/.test(dbUrl) ? false : { rejectUnauthorized: false }, max: 8 }) : null;
+const demoMode = process.env.KAP_DEMO_MODE === 'true';
+if(demoMode){
+  const { PGlite } = await import('@electric-sql/pglite');
+  const demoDb = new PGlite();
+  const demoQuery=(sql,params=[])=>!params.length&&sql.includes('CREATE TABLE')?demoDb.exec(sql):demoDb.query(sql,params);
+  pool={query:demoQuery,connect:async()=>({query:demoQuery,release(){}})};
+}
 const RATE = new Map();
 const ROLES = ['owner', 'manager', 'support', 'fulfillment'];
 const ORDER_STATUS = ['draft','pending','processing','shipped','delivered','cancelled'];
@@ -78,6 +85,22 @@ async function migrate(){
     if(validEmail(email)&&password?.length>=14){await query('INSERT INTO kap_users(id,email,name,password_hash,role) VALUES($1,$2,$3,$4,$5)',[uid(),email.toLowerCase(),'KAP. Eigenaar',passhash(password),'owner']);console.log('KAP. initial owner configured');}
     else console.warn('KAP. setup pending: configure independent admin email and strong password (14+ chars).');
   }
+  if(demoMode)await seedDemo();
+}
+async function seedDemo(){
+  const existing=await one('SELECT count(*)::int AS count FROM kap_orders');if(existing.count>0)return;
+  const first=await createOrder({customer:{email:'emma@voorbeeld.invalid',first_name:'Emma',last_name:'Demo'},items:[{sku:'essential-zwart-60',quantity:1}]},null,'manual');
+  await query("UPDATE kap_orders SET status='delivered',payment_status='paid',fulfillment_status='fulfilled' WHERE id=$1",[first.id]);
+  const second=await createOrder({customer:{email:'daan@voorbeeld.invalid',first_name:'Daan',last_name:'Voorbeeld'},items:[{sku:'studio-zwart-60',quantity:1}]},null,'manual');
+  await query("UPDATE kap_orders SET status='pending' WHERE id=$1",[second.id]);
+  const emma=await one('SELECT id FROM kap_customers WHERE email=$1',['emma@voorbeeld.invalid']);
+  const daan=await one('SELECT id FROM kap_customers WHERE email=$1',['daan@voorbeeld.invalid']);
+  const ticketId=uid();
+  await query("INSERT INTO kap_tickets(id,customer_id,order_id,subject,priority) VALUES($1,$2,$3,$4,$5)",[ticketId,daan.id,second.id,'Vraag over montage van 60 cm','high']);
+  await query("INSERT INTO kap_messages(id,ticket_id,direction,body,sender) VALUES($1,$2,$3,$4,$5)",[uid(),ticketId,'inbound','Past deze afzuigkap onder mijn bestaande bovenkast?','daan@voorbeeld.invalid']);
+  await query("INSERT INTO kap_tickets(id,customer_id,order_id,subject,status) VALUES($1,$2,$3,$4,$5)",[uid(),emma.id,first.id,'Vraag over retourtermijn','pending']);
+  await query("INSERT INTO kap_returns(id,order_id,reason) VALUES($1,$2,$3)",[uid(),first.id,'Voorbeeldretour voor demonstratie']);
+  console.log('KAP. disposable demo data created');
 }
 async function ensureCustomer(client, input) {
   const email=clean(input.email,254).toLowerCase();if(!validEmail(email))throw bad(400,'Geldig klant-e-mailadres vereist');
@@ -133,6 +156,7 @@ async function handler(req,res){
   if(method==='GET'&&p==='/'){res.writeHead(302,{Location:'/admin/'});return res.end()}
   if(method==='GET'&&(p==='/admin'||p.startsWith('/admin/')))return staticFile(req,res,p);
   if(!p.startsWith('/api/'))throw bad(404,'Niet gevonden');
+  if(demoMode&&p.startsWith('/api/webhooks/'))throw bad(503,'Integraties zijn uitgeschakeld in de tijdelijke demo');
   if(method!=='GET'&&!['POST','PATCH','DELETE'].includes(method))throw bad(405,'Methode niet toegestaan');
   if(method!=='GET'&&!String(req.headers['content-type']||'').startsWith('application/json'))throw bad(415,'JSON vereist');
   if(p==='/api/login'&&method==='POST'){
@@ -185,7 +209,7 @@ async function handler(req,res){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
     // A separate one-use CSRF claim allows a refreshed tab to recover without revealing it to a cross-origin reader.
     const csrf=secret();await query('UPDATE kap_sessions SET csrf_hash=$1 WHERE token_hash=$2',[sha(csrf),sha(cookies(req).kap_session)]);
-    return json(res,200,{user:safeUser(user),csrf,features:{mail:!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!!process.env.KAP_INBOUND_SECRET,checkout:false}});
+    return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode}});
   }
   if(method!=='GET')verifyCsrf(req,user);
   if(p==='/api/logout'&&method==='POST'){await query('DELETE FROM kap_sessions WHERE token_hash=$1',[sha(cookies(req).kap_session)]);res.setHeader('Set-Cookie','kap_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
@@ -264,7 +288,7 @@ async function handler(req,res){
     const {data}=await body(req);const ticket=await one(`SELECT t.*,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id WHERE t.id=$1`,[mm[1]]);
     if(!ticket)throw bad(404,'Ticket niet gevonden');const message=clean(data.body,20000);
     if(!message)throw bad(400,'Leeg bericht');const isReply=data.direction==='outbound';
-    if(isReply&&(!process.env.KAP_MAIL_API_KEY||!validEmail(process.env.KAP_FROM_EMAIL)))throw bad(409,'KAP.-mailprovider nog niet gekoppeld; het bericht is niet verzonden');
+    if(isReply&&(demoMode||!process.env.KAP_MAIL_API_KEY||!validEmail(process.env.KAP_FROM_EMAIL)))throw bad(409,'KAP.-mailprovider in deze omgeving niet actief; het bericht is niet verzonden');
     if(isReply&&!validEmail(ticket.email))throw bad(409,'Geen geldig klantadres');
     const messageId=uid();
     let item=await one('INSERT INTO kap_messages(id,ticket_id,direction,body,sender,created_by,delivery_status) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[messageId,mm[1],isReply?'outbound':'note',message,isReply?process.env.KAP_FROM_EMAIL:user.name,user.id,isReply?'sending':'internal']);
@@ -302,7 +326,7 @@ async function handler(req,res){
     const item=await one('INSERT INTO kap_users(id,email,name,password_hash,role) VALUES($1,$2,$3,$4,$5) RETURNING id,email,name,role,active',[uid(),data.email.toLowerCase(),clean(data.name,100),passhash(data.password),data.role]);await audit(user.id,'user',item.id,'created',{role:item.role});return json(res,201,{item});
   }
   if(p==='/api/activity'&&method==='GET')return json(res,200,{items:(await query('SELECT e.*,u.name AS actor FROM kap_events e LEFT JOIN kap_users u ON u.id=e.actor_id ORDER BY e.created_at DESC LIMIT 100')).rows});
-  if(p==='/api/config'&&method==='GET')return json(res,200,{brand:'KAP.',shop:process.env.KAP_SHOP_ORIGIN||null,mail_ready:!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound_ready:!!process.env.KAP_INBOUND_SECRET,checkout_ready:false,data_isolated:true});
+  if(p==='/api/config'&&method==='GET')return json(res,200,{brand:'KAP.',shop:process.env.KAP_SHOP_ORIGIN||null,mail_ready:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound_ready:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout_ready:false,data_isolated:true,demo_mode:demoMode});
   throw bad(404,'Endpoint niet gevonden');
 }
 const server=http.createServer((req,res)=>handler(req,res).catch(error=>{

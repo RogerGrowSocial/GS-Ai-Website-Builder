@@ -31,3 +31,7 @@ Keep webhook secrets private. Integrations are **not connected** until independe
 `npm ci && npm test`. Provide `DATABASE_URL` to run against a dedicated local Postgres. Startup creates the `kap_*` schema and three draft-only example products. Product prices remain illustrative.
 
 No sample customers, messages or fake orders are inserted. The dashboard is empty until actual or manually entered data arrives.
+
+### Free disposable demo
+
+For a **preview only**, set `KAP_DEMO_MODE=true`, omit `DATABASE_URL`, and deploy on a free Render web service. This uses an in-memory PGlite database and creates clearly fictional example orders and tickets. Data is **permanently lost** on every restart/sleep/deploy. Mail delivery and all webhooks are disabled in demo mode. Never enter real customer information. This mode is not suitable for operations or production.
