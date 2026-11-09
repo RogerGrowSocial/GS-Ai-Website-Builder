@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#192d24">
+  <title>KAP. Studio — Operations</title>
+  <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+  <div id="notice" class="toast" role="status" aria-live="polite"></div>
+  <div id="login" class="login-screen">
+    <div class="login-art"><div class="login-art-top">KAP<span>.</span></div><div class="login-art-bottom"><span>THE KAP. STUDIO</span><h1>Achter elk goed product staat een sterk team.</h1><p>Orders, service en klantrelaties. Eén rustige werkplek.</p></div></div>
+    <div class="login-panel"><div class="login-box"><span class="eyebrow">WELCOME TO THE STUDIO</span><h2>Welkom terug<span>.</span></h2><p>Log in op de beveiligde beheeromgeving van KAP.</p><form id="login-form"><label>E-mailadres<input type="email" name="email" autocomplete="username" required placeholder="jij@kap.nl"></label><label>Wachtwoord<input type="password" name="password" autocomplete="current-password" required placeholder="••••••••••••"></label><button class="primary" type="submit">Inloggen <span>↗</span></button></form><small>Privé KAP.-omgeving · Geen toegang voor klanten</small></div></div>
+  </div>
+  <div id="shell" class="shell hidden">
+    <aside class="sidebar">
+      <div class="brand"><strong>KAP<span>.</span></strong><small>STUDIO / OPERATIONS</small></div>
+      <div class="side-group-label">WERKPLEK</div>
+      <nav id="nav" class="nav">
+        <button data-page="dashboard" class="active"><span class="ico">▦</span> Overzicht</button>
+        <button data-page="orders"><span class="ico">▤</span> Bestellingen <span id="order-badge" class="nav-badge"></span></button>
+        <button data-page="customers"><span class="ico">♧</span> Klanten</button>
+        <button data-page="tickets"><span class="ico">☏</span> Klantenservice <span id="ticket-badge" class="nav-badge"></span></button>
+        <button data-page="returns"><span class="ico">↩</span> Retouren</button>
+      </nav>
+      <div class="side-group-label">BEHEER</div>
+      <nav class="nav">
+        <button data-page="products"><span class="ico">▣</span> Productstatus</button>
+        <button data-page="templates"><span class="ico">☷</span> Antwoordsjablonen</button>
+        <button data-page="team"><span class="ico">♙</span> Team</button>
+        <button data-page="activity"><span class="ico">◷</span> Activiteitenlog</button>
+        <button data-page="settings"><span class="ico">⚙</span> Instellingen</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="status-pulse"></div><div><strong>Previewmodus</strong><small>Checkout niet actief</small></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><button id="menu-button" class="menu-btn" aria-label="Menu openen">☰</button><span class="breadcrumb">KAP. STUDIO <span>/</span> <span id="crumb">OVERZICHT</span></span><div class="top-actions"><span class="pill"><i></i> Beheeromgeving</span><span class="avatar" id="avatar">K</span><span id="user-name">Eigenaar</span><button id="logout" class="logout" title="Uitloggen">↗</button></div></header>
+      <main id="content" class="content"></main>
+    </div>
+  </div>
+  <div id="modal" class="modal-layer hidden" role="dialog" aria-modal="true" aria-label="Details"><div class="modal-backdrop" data-close></div><div class="modal-panel"><button class="modal-close" data-close aria-label="Sluiten">×</button><div id="modal-body"></div></div></div>
+  <script type="module" src="/admin/app.js"></script>
+</body>
+</html>
