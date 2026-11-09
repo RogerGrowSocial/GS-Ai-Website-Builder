@@ -177,3 +177,32 @@
 @media(max-width:1100px){.premiumHeroGrid{grid-template-columns:49% 51%}.premiumHeroText{padding:60px 30px 50px 0}.premiumHeroText h1{font-size:53px}.premiumHeroPicture,.premiumHeroGrid{min-height:460px}.guideCompareGrid,.aboutJourney,.contactDarkGrid,.contactFaq{gap:40px}}
 @media(max-width:820px){.premiumHeroGrid{grid-template-columns:1fr}.premiumHeroText{padding:66px 10px 52px}.premiumHeroPicture{min-height:330px}.premiumHeroGrid{min-height:auto}.guideTileGrid,.modernInfoGrid{grid-template-columns:1fr 1fr}.guideCompareGrid,.guideChecklist,.twoColFeature,.aboutJourney,.contactDarkGrid,.contactFaq,.legalPremium{grid-template-columns:1fr}.guideChecklist,.guideCompareGrid,.twoColFeature,.aboutJourney,.contactDarkGrid,.contactFaq,.legalPremium{gap:25px}.aboutJourneyArt{min-height:380px}.bigCTA{padding:37px}.guideCompareCards article{min-height:220px}.modernInfoGrid>.modernInfoCard:last-child{grid-column:1/-1}}
 @media(max-width:540px){.premiumHeroText{padding:50px 0 40px}.premiumHeroText h1{font-size:44px}.premiumHeroText p{font-size:14px}.premiumHeroPicture{min-height:240px}.premiumImageTag{right:20px;bottom:20px}.premiumHeroNote{margin-top:27px}.guideTileGrid,.modernInfoGrid,.guideCompareCards{grid-template-columns:1fr}.guideTile{min-height:275px;padding:25px}.modernInfoCard{min-height:235px;padding:25px}.modernInfoGrid>.modernInfoCard:last-child{grid-column:auto}.guideCompareCards article{min-height:175px}.checklistCard{padding:20px}.checklistLine{font-size:12px}.aboutJourneyArt{min-height:270px}.bigCTA{display:block;padding:29px}.bigCTA .btn{margin-top:25px}.contactDarkAside{padding:26px}.contactFaq{gap:15px}.twoColFeature h2{font-size:35px}}
+
+/* FAQ and standalone buying guide articles */
+.faqTopicGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.faqTopicGrid a{padding:32px;background:#f6f8f3;display:flex;flex-direction:column;align-items:flex-start;min-height:217px;border:1px solid #e4eadd;transition:.2s}
+.faqTopicGrid a:hover{background:#edf3e5;transform:translateY(-3px)}
+.faqTopicGrid svg{width:31px;height:31px;color:#76946b;margin-bottom:31px}
+.faqTopicGrid strong{font:800 19px/1.4 Manrope,sans-serif;letter-spacing:-.045em}.faqTopicGrid span{font-size:11px;font-weight:800;color:#587b55;margin-top:12px}
+.faqEditorial{display:grid;grid-template-columns:.76fr 1.24fr;gap:75px}
+.faqEditorial h2{font-size:clamp(33px,3.8vw,50px);margin:22px 0}
+.faqEditorial p{color:#69786d;font-size:14px;line-height:1.9;max-width:455px;margin-bottom:25px}
+.faqExpanded details{background:#fff;border-bottom:1px solid #e6ebe4;padding:21px 24px}
+.faqExpanded details+details{margin-top:7px}
+.faqExpanded summary{font-size:14px;font-weight:800;list-style:none;position:relative;padding-right:20px}
+.faqExpanded summary:after{content:'+';position:absolute;right:0;font-size:21px;top:-5px;color:#7f9d79}
+.faqExpanded details[open] summary:after{content:'−'}
+.faqExpanded details p{font-size:13px;color:#6a7a6e;max-width:none;margin:14px 0 0}
+.articleSteps{display:grid;grid-template-columns:1fr 1fr;gap:17px}
+.articleSteps article{padding:34px;display:flex;gap:23px;background:#f4f6f1;min-height:204px}
+.articleSteps article>span{font:800 14px Manrope,sans-serif;color:#789971}
+.articleSteps h3{font-size:22px;margin-bottom:13px}.articleSteps p{color:#68786a;font-size:13px;line-height:1.85}
+.adviceSplit{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:70px}
+.adviceSplit h2{font-size:clamp(33px,3.6vw,50px);margin:20px 0}
+.adviceSplit p{font-size:15px;color:#647465;line-height:1.9;margin-bottom:23px}
+.adviceVisual{background:#e8ede3;min-height:345px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:25px}
+.adviceVisualProduct{width:100%;display:grid;place-items:center}
+.adviceVisualProduct svg{width:95%;max-width:480px;filter:drop-shadow(0 22px 16px #2230231f)}
+.adviceVisual>span{font-size:11px;color:#819181;text-align:center}
+@media(max-width:820px){.faqEditorial,.adviceSplit{grid-template-columns:1fr;gap:35px}.faqTopicGrid{gap:12px}.faqTopicGrid a{padding:23px;min-height:175px}.articleSteps article{padding:23px}}
+@media(max-width:540px){.faqTopicGrid,.articleSteps{grid-template-columns:1fr}.faqTopicGrid a{min-height:155px}.faqTopicGrid svg{margin-bottom:20px}.faqExpanded details{padding:17px}.articleSteps article{min-height:auto}.adviceVisual{min-height:230px}}
