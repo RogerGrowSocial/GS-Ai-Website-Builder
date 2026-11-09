@@ -298,3 +298,18 @@
 .kapConsentActions{display:flex;gap:10px;flex-wrap:wrap}.kapConsentActions button{padding:11px 15px;font-size:12px;font-weight:800;border:1px solid #d6e0d5;background:#fff;color:#375039;flex:1}
 .kapConsentActions button:last-child{background:#243a2b;border-color:#243a2b;color:white}
 .kapConsentActions button:hover{filter:brightness(.95)}@media(max-width:540px){.kapConsent{bottom:12px;left:12px;width:calc(100vw - 24px);padding:17px 18px}.kapConsentActions button{font-size:11px;padding:10px}}
+
+/* Search-intent editorial guides, built for reading and internal navigation */
+.seoLandingHero{background:#f1f4ed;padding:65px 0}.seoLandingGrid{display:grid;grid-template-columns:1.07fr .93fr;gap:65px;align-items:center}
+.seoLandingGrid h1{font-size:clamp(38px,4.5vw,63px);max-width:720px;margin:25px 0 22px}
+.seoLandingGrid p{font-size:15px;color:#66776a;line-height:1.95;max-width:600px;margin-bottom:26px}
+.seoLandingPhoto{position:relative;min-height:440px;overflow:hidden}.seoLandingPhoto img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.seoReadingTop h2{font-size:clamp(32px,3.7vw,48px);margin:20px 0 35px}.seoArticleGrid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.seoArticleGrid article{display:flex;gap:22px;background:#f6f8f3;padding:28px;border:1px solid #e7ece4;min-height:230px}
+.seoArticleGrid article>span{font-size:12px;font-weight:800;color:#85a481;min-width:28px}.seoArticleGrid h3{font-size:22px;margin-bottom:12px}
+.seoArticleGrid p{font-size:13px;color:#647464;line-height:1.9}.seoHelpful{display:grid;grid-template-columns:1fr .75fr;gap:60px;align-items:center}
+.seoHelpful h2{font-size:clamp(31px,3.4vw,44px);margin:19px 0}.seoHelpful p{color:#687968;line-height:1.9;font-size:14px}
+.seoHelpful>div:last-child{background:#fff;padding:25px 32px}.seoHelpful a{display:flex;align-items:center;justify-content:space-between;padding:15px 0;border-bottom:1px solid #e6ece4;font-size:13px;font-weight:800;color:#36573b}
+.seoHelpful a svg{height:19px;width:19px}
+@media(max-width:850px){.seoLandingGrid,.seoHelpful{grid-template-columns:1fr;gap:28px}.seoLandingPhoto{min-height:330px}.seoArticleGrid{gap:12px}}
+@media(max-width:540px){.seoLandingHero{padding:35px 0}.seoLandingGrid h1{font-size:37px}.seoLandingPhoto{min-height:240px}.seoArticleGrid{grid-template-columns:1fr}.seoArticleGrid article{min-height:auto;padding:22px}.seoHelpful>div:last-child{padding:20px}}
