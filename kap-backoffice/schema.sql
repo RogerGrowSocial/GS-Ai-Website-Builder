@@ -67,7 +67,12 @@ create table if not exists public.kap_orders (
  internal_note text,
  placed_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
- constraint kap_order_total_check check(total_cents=subtotal_cents+tax_cents+shipping_cents)
+ constraint kap_order_total_check check(total_cents=subtotal_cents+tax_cents+shipping_cents),
+ constraint kap_payment_status_consistency check (
+  (status in ('paid','preparing','shipped','delivered') and payment_status='paid')
+  or (status='refunded' and payment_status in ('refunded','partially_refunded'))
+  or status in ('pending_payment','cancelled')
+ )
 );
 create index if not exists kap_orders_status_created_idx on public.kap_orders(status,placed_at desc);
 create index if not exists kap_orders_customer_idx on public.kap_orders(customer_id);
