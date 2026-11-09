@@ -113,3 +113,67 @@
 @media(max-width:900px){.storyLayout{gap:30px}.contactLayout{gap:25px}.infoPillar{padding:25px}.serviceCTA{padding:35px}}
 @media(max-width:720px){.brandStory{padding:55px 0}.storyLayout,.contactLayout{grid-template-columns:1fr}.storyImage{min-height:340px}.infoPillars{grid-template-columns:1fr;gap:10px}.infoPillar{min-height:0;padding:25px}.infoPillar>svg{margin-bottom:13px}.serviceCTA{display:block}.serviceCTA .btn{margin-top:25px}.contactMessage{margin-top:23px}.legalLayout{padding-bottom:40px}}
 @media(max-width:540px){.storyImage{min-height:255px}.contactCards>a{padding:19px}.serviceCTA{padding:28px}.storyLayout h2,.contactLead h2,.legalLayout h2{font-size:34px}}
+
+/* KAP. 2.0 — premium secondary-page design system */
+.premiumHero{background:#eef2e9;overflow:hidden}.premiumHeroGrid{display:grid;grid-template-columns:minmax(0,48%) minmax(0,52%);align-items:stretch;min-height:540px}
+.premiumHeroText{padding:80px clamp(18px,4.5vw,67px) 65px 0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center}
+.premiumHeroText h1{font-size:clamp(42px,4.6vw,71px);letter-spacing:-.077em;line-height:1.08;margin:25px 0 23px}
+.premiumHeroText h1 span{color:#79936f}.premiumHeroText p{color:#627566;font-size:16px;line-height:1.87;max-width:520px;margin-bottom:30px}
+.premiumHeroText .btn{min-width:200px;justify-content:space-between}.premiumHeroNote{font-size:11px;color:#7c8a7b;display:flex;align-items:center;gap:10px;margin-top:42px;font-weight:600}
+.noteDot{height:7px;width:7px;background:#9cb68e;border-radius:99px;display:inline-block;flex-shrink:0}
+.premiumHeroPicture{position:relative;min-height:540px;overflow:hidden;background:#c2c7b7}
+.premiumHeroPicture:before{content:'';position:absolute;inset:0;background:#1e312b12;z-index:1}
+.premiumHeroPicture img{width:100%;height:100%;object-fit:cover;object-position:52% center;position:absolute;inset:0}
+.premiumImageTag{position:absolute;bottom:30px;right:30px;z-index:2;color:#fff;letter-spacing:.12em;font-size:12px;font-weight:800;text-shadow:0 1px 10px #0006}
+.premiumImageTag span{font-size:9px;color:#ecf5ea;font-weight:500;margin-left:8px}
+.premiumHero--contact{background:#f5f4ef}.premiumHero--contact .premiumHeroPicture img{object-position:73% center}
+.premiumHero--about{background:#eff1eb}.premiumHero--about .premiumHeroPicture img{object-position:45% center}
+.premiumHero--guide{background:#f2f3ed}.premiumHero--shipping{background:#f1f4ed}
+.premiumHero--legal{background:#f3f5f0}.premiumHero--legal .premiumHeroGrid{min-height:450px}.premiumHero--legal .premiumHeroPicture{min-height:450px}
+.guideTileGrid,.modernInfoGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.guideTile{border:1px solid #e3e9df;min-height:320px;background:#f8f9f6;padding:30px;display:flex;flex-direction:column;position:relative;transition:transform .2s,box-shadow .2s,border-color .2s}
+.guideTile:hover{transform:translateY(-4px);border-color:#c3d2ba;box-shadow:0 18px 44px #263b2814}
+.guideTileNumber{font:800 12px 'Manrope',sans-serif;color:#879c80;letter-spacing:.1em}.guideTileIcon{height:57px;width:57px;display:grid;place-items:center;background:#e7ede1;color:#59795c;margin:19px 0 24px;border-radius:100px}
+.guideTileIcon svg{height:26px;width:26px}.guideTile h3{font-size:23px;margin-bottom:13px}.guideTile p{font-size:13px;line-height:1.75;color:#758276;max-width:300px}
+.guideTileLink{display:flex;align-items:center;gap:10px;font-size:12px;color:#385b3a;font-weight:800;margin-top:auto;padding-top:28px}
+.guideTileLink svg{width:18px;height:18px}
+.guideCompare{background:#26382c;color:#fff}.guideCompareGrid{display:grid;grid-template-columns:.85fr 1.15fr;gap:65px;align-items:center}.guideCompare h2{font-size:clamp(32px,3.9vw,54px);margin:21px 0}
+.guideCompare p{font-size:14px;line-height:1.9;color:#d2dfd2;max-width:500px;margin-bottom:24px}
+.guideCompare .eyebrow{color:#abc9a4}.guideCompare .btn.ghost{color:#fff;border-color:#708c77}
+.guideCompareCards{display:grid;grid-template-columns:1fr 1fr;gap:14px}.guideCompareCards article{padding:32px 27px;background:#34483a;min-height:260px}
+.compareBadge{display:inline-block;color:#c3dcb6;font-weight:800;font-size:11px;letter-spacing:.15em;margin-bottom:24px}
+.guideCompareCards h3{font-size:24px;margin-bottom:12px}.guideCompareCards p{font-size:12px;color:#bfcec1;margin:0}
+.guideChecklist{display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center}.guideChecklistIntro h2{font-size:clamp(32px,4vw,54px);margin:22px 0}
+.guideChecklistIntro p{font-size:15px;color:#68786b;line-height:1.8;max-width:465px}.checklistCard{padding:32px 35px;background:#fff;border:1px solid #e3e7df;box-shadow:0 15px 55px #142c1910}
+.checklistLine{display:flex;align-items:center;gap:14px;padding:15px 0;border-bottom:1px solid #e7ebe6;cursor:pointer;font-size:13px;font-weight:700;color:#3e4f40}
+.checklistLine input{accent-color:#4e7350;width:20px;height:20px;flex-shrink:0;cursor:pointer}.checklistLine:has(input:checked) span{text-decoration:line-through;color:#849283}
+.checklistFoot{display:flex;gap:9px;align-items:center;font-size:11px;color:#849086;margin-top:22px}.checklistFoot svg{height:17px;width:17px;color:#719667}
+.twoColFeature{display:grid;grid-template-columns:1fr 1fr;gap:85px;align-items:start}.twoColFeature h2{font-size:clamp(36px,3.7vw,52px);margin-top:22px}
+.twoColFeature p{color:#66756a;line-height:1.98;font-size:15px;margin-bottom:17px}
+.modernInfoCard{min-height:305px;padding:31px 31px 28px;border:1px solid #e7ede4;background:#fff;display:flex;flex-direction:column;align-items:flex-start;transition:border-color .18s,box-shadow .18s}
+.modernInfoCard:hover{border-color:#b8caae;box-shadow:0 12px 36px #1a331717}
+.modernInfoCardTop{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:38px;color:#89a282}
+.modernInfoCardTop span{font-size:11px;font-weight:800;letter-spacing:.13em}.modernInfoCardTop svg{height:31px;width:31px}
+.modernInfoCard h3{font-size:24px;margin-bottom:13px}.modernInfoCard p{font-size:13px;color:#718076;line-height:1.85;margin-bottom:24px}
+.modernInfoCard a{margin-top:auto;display:inline-flex;align-items:center;gap:11px;font-size:12px;font-weight:800;color:#3c6240}
+.modernInfoCard a svg{width:17px;height:17px}
+.aboutJourney{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:80px}
+.aboutJourneyArt{min-height:570px;position:relative;overflow:hidden}.aboutJourneyArt img{width:100%;height:100%;object-fit:cover;object-position:64% center;position:absolute;inset:0}
+.aboutJourneyText h2{font-size:clamp(34px,4vw,54px);margin:23px 0 30px}.journeyLine{display:flex;gap:22px;border-top:1px solid #e0e6db;padding:22px 0}
+.journeyLine>b{font:800 13px 'Manrope',sans-serif;color:#8ca383;padding-top:3px}.journeyLine h3{font-size:19px;margin-bottom:10px}.journeyLine p{font-size:13px;color:#6e7b6e;line-height:1.7}
+.bigCTA{background:#e8f0df;padding:55px 60px;display:flex;align-items:center;justify-content:space-between;gap:50px}
+.bigCTA h2{font-size:clamp(31px,3.6vw,46px);margin:16px 0}.bigCTA p{font-size:14px;color:#667b67;line-height:1.75;max-width:550px}
+.bigCTA>.btn{flex-shrink:0}.contactDark{background:#24372b;color:#fff}.contactDarkGrid{display:grid;grid-template-columns:1.05fr .95fr;gap:80px;align-items:center}
+.contactDark h2{font-size:clamp(33px,4vw,56px);margin:21px 0}.contactDark p{font-size:14px;line-height:1.9;color:#c6d5c9;max-width:550px}
+.contactDark .eyebrow{color:#accda1}.contactDarkAside{background:#304b39;padding:39px 38px}.contactDarkAside>svg{width:33px;height:33px;color:#c1dcba}
+.contactDarkAside h3{font-size:25px;margin:25px 0 12px}.contactDarkAside .btn{background:#e7efd9;border-color:#e7efd9;color:#233b2a;margin-top:25px}
+.contactFaq{display:grid;grid-template-columns:.85fr 1.15fr;gap:80px;align-items:start}
+.contactFaq h2{font-size:clamp(31px,3.5vw,46px);margin:23px 0}.contactFaq p{font-size:14px;color:#748174;line-height:1.85}
+.contactFaq .faqList .textlink{display:inline-block;margin-top:26px}
+.legalPremium{display:grid;grid-template-columns:1fr .68fr;gap:70px;align-items:center;max-width:1140px}
+.legalPremium h2{font-size:clamp(34px,4vw,51px);margin:20px 0}.legalPremium p{font-size:14px;color:#637365;line-height:1.85;margin-bottom:25px}
+.legalPremiumInfo{padding:34px;background:#f0f4eb}.legalPremiumInfo svg{width:32px;height:32px;color:#6e906b}
+.legalPremiumInfo h3{font-size:22px;margin:22px 0 12px}.legalPremiumInfo p{margin:0}
+@media(max-width:1100px){.premiumHeroGrid{grid-template-columns:49% 51%}.premiumHeroText{padding:60px 30px 50px 0}.premiumHeroText h1{font-size:53px}.premiumHeroPicture,.premiumHeroGrid{min-height:460px}.guideCompareGrid,.aboutJourney,.contactDarkGrid,.contactFaq{gap:40px}}
+@media(max-width:820px){.premiumHeroGrid{grid-template-columns:1fr}.premiumHeroText{padding:66px 10px 52px}.premiumHeroPicture{min-height:330px}.premiumHeroGrid{min-height:auto}.guideTileGrid,.modernInfoGrid{grid-template-columns:1fr 1fr}.guideCompareGrid,.guideChecklist,.twoColFeature,.aboutJourney,.contactDarkGrid,.contactFaq,.legalPremium{grid-template-columns:1fr}.guideChecklist,.guideCompareGrid,.twoColFeature,.aboutJourney,.contactDarkGrid,.contactFaq,.legalPremium{gap:25px}.aboutJourneyArt{min-height:380px}.bigCTA{padding:37px}.guideCompareCards article{min-height:220px}.modernInfoGrid>.modernInfoCard:last-child{grid-column:1/-1}}
+@media(max-width:540px){.premiumHeroText{padding:50px 0 40px}.premiumHeroText h1{font-size:44px}.premiumHeroText p{font-size:14px}.premiumHeroPicture{min-height:240px}.premiumImageTag{right:20px;bottom:20px}.premiumHeroNote{margin-top:27px}.guideTileGrid,.modernInfoGrid,.guideCompareCards{grid-template-columns:1fr}.guideTile{min-height:275px;padding:25px}.modernInfoCard{min-height:235px;padding:25px}.modernInfoGrid>.modernInfoCard:last-child{grid-column:auto}.guideCompareCards article{min-height:175px}.checklistCard{padding:20px}.checklistLine{font-size:12px}.aboutJourneyArt{min-height:270px}.bigCTA{display:block;padding:29px}.bigCTA .btn{margin-top:25px}.contactDarkAside{padding:26px}.contactFaq{gap:15px}.twoColFeature h2{font-size:35px}}
