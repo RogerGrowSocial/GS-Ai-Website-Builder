@@ -20,10 +20,20 @@ export function medusaBaseUrl(env = process.env) {
   return parsed;
 }
 
-export async function medusaAdminRead(resource, { env = process.env, request = fetch } = {}) {
+export function medusaPage(raw = 0) {
+  const value = typeof raw === 'number' ? raw : (/^(0|[1-9][0-9]*)$/.test(raw) ? Number(raw) : NaN);
+  if (!Number.isSafeInteger(value) || value < 0 || value > 999990 || value % 30 !== 0) {
+    throw error(400, 'Ongeldige paginering');
+  }
+  return value;
+}
+
+export async function medusaAdminRead(resource, { env = process.env, request = fetch, offset = 0 } = {}) {
   const allowed = { orders: '/admin/orders?limit=30', products: '/admin/products?limit=30' };
   if (!Object.hasOwn(allowed, resource)) throw error(400, 'Onbekende Medusa-resource');
   const url = new URL(allowed[resource], medusaBaseUrl(env));
+  url.searchParams.set('offset', String(medusaPage(offset)));
+  if (resource === 'orders') url.searchParams.set('order', '-created_at');
   let response;
   try {
     response = await request(url, {
