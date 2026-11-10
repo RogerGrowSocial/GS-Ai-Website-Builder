@@ -45,7 +45,7 @@ jobs:
           --health-retries 10
     env:
       NODE_ENV: development
-      DATABASE_URL: postgres://kapmedusa_ci:ci-test-password-only@127.0.0.1:5432/kap_medusa_ci
+      DATABASE_URL: postgres://kapmedusa_ci:ci-test-password-only@127.0.0.1:5432/kap_commerce_ci
       REDIS_URL: redis://127.0.0.1:6379
       JWT_SECRET: CI_ONLY_NONPRODUCTION_TEST_JWT_SECRET_0123456789
       COOKIE_SECRET: CI_ONLY_NONPRODUCTION_TEST_COOKIE_SECRET_9876543210
@@ -69,23 +69,22 @@ jobs:
           cache-dependency-path: kap-medusa/apps/backend/package-lock.json
       - name: Install exact audited Medusa dependencies from lockfile
         run: npm ci --no-audit --no-fund
-      - name: Prepare isolated Medusa role and protect existing public tables
+      - name: Create separate Postgres database within same project
         run: |
           set -euo pipefail
           PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_medusa_ci -v ON_ERROR_STOP=1 <<'SQL'
           CREATE TABLE public.existing_customer_data_guard (id integer primary key, note text not null);
           INSERT INTO public.existing_customer_data_guard VALUES (1,'must survive Medusa migrations');
           CREATE ROLE kapmedusa_ci LOGIN PASSWORD 'ci-test-password-only';
-          CREATE SCHEMA kap_commerce AUTHORIZATION kapmedusa_ci;
-          ALTER ROLE kapmedusa_ci IN DATABASE kap_medusa_ci SET search_path TO kap_commerce;
-          REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+          CREATE DATABASE kap_commerce_ci OWNER kapmedusa_ci TEMPLATE template0;
           SQL
-      - name: Initialize isolated PostgreSQL schema
+      - name: Migrate only the new Medusa database
         run: npm run migrate
-      - name: Confirm migrations left existing public data untouched
+      - name: Verify original project database is unchanged
         run: |
           set -euo pipefail
-          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_medusa_ci -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN (SELECT count(*) FROM pg_tables WHERE schemaname='kap_commerce') > 30 AND (SELECT count(*) FROM pg_tables WHERE schemaname='public') = 1 AND (SELECT note FROM public.existing_customer_data_guard WHERE id=1)='must survive Medusa migrations' THEN 'SAFE' ELSE 'UNSAFE' END" | grep -Fx SAFE
+          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_medusa_ci -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN (SELECT count(*) FROM pg_tables WHERE schemaname='public') = 1 AND (SELECT note FROM public.existing_customer_data_guard WHERE id=1)='must survive Medusa migrations' THEN 'SAFE' ELSE 'UNSAFE' END" | grep -Fx SAFE
+          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_commerce_ci -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN (SELECT count(*) FROM pg_tables WHERE schemaname='public') > 30 THEN 'MEDUSA_OK' ELSE 'MISSING_TABLES' END" | grep -Fx MEDUSA_OK
       - name: Create disposable Medusa admin test identity
         run: npx medusa user --email "$CI_MEDUSA_ADMIN_EMAIL" --password "$CI_MEDUSA_ADMIN_PASSWORD"
       - name: Build actual Medusa server
