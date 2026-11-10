@@ -1,8 +1,8 @@
-name: KAP Medusa - real isolated startup test
+name: KAP Medusa - isolated DB and real startup QA
 
 on:
   push:
-    branches: [feature/kap-supabase-db-isolation]
+    branches: [feature/kap-operations-20261110, feature/kap-supabase-db-isolation]
     paths:
       - 'kap-medusa/apps/backend/**'
       - '.github/workflows/kap-medusa-smoke.yml'
