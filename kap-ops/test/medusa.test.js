@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  medusaConfigured, medusaBaseUrl, medusaAdminRead,
+  medusaConfigured, medusaBaseUrl, medusaAdminRead, medusaPage,
   medusaMoneyToCents, medusaOrderSummary
 } from '../medusa-client.js';
 
@@ -25,7 +25,7 @@ test('Medusa API key remains server-only; adapter performs GET requests',async()
   const result=await medusaAdminRead('orders',{env,request:fakeFetch});
   assert.equal(result.orders[0].id,'order_1');
   assert.equal(calls.length,1);
-  assert.equal(calls[0].url,'https://commerce.kap.example/admin/orders?limit=30');
+  assert.equal(calls[0].url,'https://commerce.kap.example/admin/orders?limit=30&offset=0&order=-created_at');
   assert.equal(calls[0].init.method,'GET');
   assert.equal(calls[0].init.headers.Authorization,'Basic '+env.KAP_MEDUSA_SECRET_API_KEY);
   await assert.rejects(medusaAdminRead('write-order',{env,request:fakeFetch}),{code:400});
@@ -46,4 +46,23 @@ test('Medusa failures do not expose upstream error messages or credentials',asyn
   const failing=async()=>({ok:false,status:401,json:async()=>({error:'private provider token'})});
   await assert.rejects(medusaAdminRead('products',{env,request:failing}),err=>err.code===502&&!err.message.includes('token'));
   await assert.rejects(medusaAdminRead('products',{env,request:async()=>{throw Error('secret')}}),err=>err.code===502&&!err.message.includes('secret'));
+});
+
+test('Medusa pagination rejects invalid offsets and preserves least-privilege access',async()=>{
+  assert.equal(medusaPage(0),0);
+  assert.equal(medusaPage('30'),30);
+  for(const input of [-1,1,2.5,'30x','1e4',null,Infinity,999999,1_000_020]){
+    assert.throws(()=>medusaPage(input),{code:400});
+  }
+  const calls=[];
+  const request=async(url,init)=>{
+    calls.push({url:String(url),init});
+    return {ok:true,json:async()=>({products:[],count:64,limit:30,offset:30})};
+  };
+  const result=await medusaAdminRead('products',{env,request,offset:30});
+  assert.equal(result.count,64);
+  assert.equal(calls[0].url,'https://commerce.kap.example/admin/products?limit=30&offset=30');
+  assert.equal(calls[0].init.method,'GET');
+  await assert.rejects(medusaAdminRead('orders',{env,request,offset:31}),{code:400});
+  assert.equal(calls.length,1);
 });
