@@ -30,6 +30,12 @@ Independent KAP. order management and customer-care service. It does **not** con
 - The notification outbox is persistent **only with a real `DATABASE_URL`**. With `KAP_MAIL_API_KEY` and `KAP_FROM_EMAIL` from a verified KAP.-only sender, the application can attempt live email delivery. Until then, real-mode notifications remain queued and cannot be presented as delivered. A provider acceptance is not proof of recipient inbox delivery.
 - Returns are handled as requests and internal status changes; no automatic carrier label, refund or payment-provider credit is issued. Shipping tracking is manually recorded; no live carrier integration exists yet.
 
+### Persistent, free staff test checkout
+
+With the real `DATABASE_URL`, set `KAP_TEST_CHECKOUT_ENABLED=true` to expose **Testbestelling** to logged-in owners/managers. It creates only fictional `.invalid` customers, simulated payments and **never-sent** email previews. All sandbox data survives server restarts and deployments, but is marked `source=sandbox` and excluded from real-order/real-revenue dashboard KPIs. The last test order can be resumed after a browser refresh. No products, real inventory, iDEAL charges, mail credits, refunds, carrier labels or real shipping integrations are used. Public checkout stays disabled. Turn the flag off to hide new tests without deleting historical test records.
+
+All `kap_*` tables have PostgreSQL Row Level Security enabled and no policies allowing public API roles. The server's dedicated database connection is still required for internal operations. Keep the Supabase Data API disabled.
+
 ## Webhooks
 
 The request header `x-kap-timestamp` is Unix milliseconds. `x-kap-signature` equals `sha256=<hex(HMAC_SHA256(secret, timestamp + '.' + raw JSON body))>`. The timestamp is valid for 5 minutes. Inbound emails require `message_id`, `from`, `subject`, `body`, optional `ticket_id`. Order payload: `external_reference`, `customer` (`email`, `first_name`, `last_name`), `items` (`sku`, `quantity`), optional `shipping_address`. Payment payload: `event_id`, `external_reference`, `status` (`paid`/`refunded`), exact `amount_cents` and `currency`. Payment providers' native webhook signatures must be verified by the adapter before the KAP. webhook is called.

@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { PGlite } from '@electric-sql/pglite';
-import { server, migrate, setDatabaseForTests } from '../server.js';
+process.env.KAP_TEST_CHECKOUT_ENABLED='true';
+const { server, migrate, setDatabaseForTests } = await import('../server.js');
 
 test('end-to-end order, customer care, return and authorization workflows',async()=>{
   process.env.NODE_ENV='test';
@@ -55,10 +56,30 @@ test('end-to-end order, customer care, return and authorization workflows',async
     r=await request('/api/returns','POST',{order_id:orderId,reason:'Past niet'});assert.equal(r.status,201);
     const returnId=r.data.item.id;
     r=await request('/api/returns/'+returnId,'PATCH',{status:'approved',resolution:'refund',notes:'Administratief verzoek'});assert.equal(r.status,200);assert.match(r.data.note,/niet daadwerkelijk/);
+    // On the *persistent Postgres* driver, run the complete staff-only checkout.
+    // Even if outbound mail is configured later, sandbox messages must not go out.
+    process.env.KAP_MAIL_API_KEY='fake-test-only-key';
+    process.env.KAP_FROM_EMAIL='orders@kap.example';
+    r=await request('/api/testing/checkout','POST',{sku:'essential-rvs-60',quantity:1});
+    assert.equal(r.status,201);const sandboxId=r.data.item.id;
+    r=await request('/api/testing/orders/latest');assert.equal(r.data.item.id,sandboxId);
+    r=await request('/api/testing/orders/'+sandboxId+'/pay','POST',{});assert.equal(r.status,200);
+    r=await request('/api/testing/orders/'+sandboxId+'/pay','POST',{});assert.equal(r.status,200);
+    r=await request('/api/orders/'+sandboxId);assert.equal(r.data.notifications.length,1);
+    assert.equal(r.data.notifications[0].delivery_status,'simulated');
+    assert.equal(r.data.item.source,'sandbox');
+    r=await request('/api/orders/'+sandboxId,'PATCH',{status:'shipped',fulfillment_status:'fulfilled',carrier:'KAP Testtransport',tracking_code:'TEST-1'});assert.equal(r.status,200);
+    r=await request('/api/orders/'+sandboxId);assert.equal(r.data.notifications.length,2);
+    assert.ok(r.data.notifications.every(n=>n.delivery_status==='simulated'));
+    r=await request('/api/tickets','POST',{order_id:sandboxId,subject:'Testvraag'});assert.equal(r.status,201);
+    r=await request('/api/returns','POST',{order_id:sandboxId,reason:'Testretour'});assert.equal(r.status,201);
+    r=await request('/api/orders/'+sandboxId);assert.equal(r.data.tickets.length,1);assert.equal(r.data.returns.length,1);
+    delete process.env.KAP_MAIL_API_KEY;delete process.env.KAP_FROM_EMAIL;
     r=await request('/api/team','POST',{name:'KAP Support',email:'support@kap.example',role:'support',password:'TemporarySecurePass#123'});assert.equal(r.status,201);
     r=await request('/api/dashboard');assert.equal(r.status,200);assert.equal(r.data.orders.total,1);assert.equal(r.data.tickets.open,1);
+    assert.equal(r.data.orders.paid_total,95000); // never count simulated payments as revenue
     r=await request('/api/activity');assert.equal(r.status,200);assert.ok(r.data.items.length>=5);
     r=await request('/api/logout','POST',{});assert.equal(r.status,200);
     r=await request('/api/dashboard');assert.equal(r.status,401);
-  }finally{await new Promise(resolve=>server.close(resolve));await db.close();delete process.env.KAP_ADMIN_EMAIL;delete process.env.KAP_ADMIN_PASSWORD;delete process.env.KAP_PAYMENT_WEBHOOK_SECRET;}
+  }finally{await new Promise(resolve=>server.close(resolve));await db.close();delete process.env.KAP_ADMIN_EMAIL;delete process.env.KAP_ADMIN_PASSWORD;delete process.env.KAP_PAYMENT_WEBHOOK_SECRET;delete process.env.KAP_MAIL_API_KEY;delete process.env.KAP_FROM_EMAIL;}
 });

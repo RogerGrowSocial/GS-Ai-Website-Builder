@@ -5,6 +5,8 @@ export function createDemoPool(){
   const db=new DatabaseSync(':memory:');
   db.exec('PRAGMA foreign_keys = ON');
   const normalize=sql=>sql
+    // SQLite's throwaway adapter has no equivalent for PostgreSQL RLS.
+    .replace(/ALTER TABLE kap_\w+ ENABLE ROW LEVEL SECURITY;\s*/g,'')
     .replace(/number bigint GENERATED ALWAYS AS IDENTITY UNIQUE/g,'number INTEGER UNIQUE DEFAULT (abs(random() % 1000000))')
     .replace(/tags text\[\] NOT NULL DEFAULT '\{\}'::text\[\]/g,"tags TEXT NOT NULL DEFAULT '[]'")
     .replace(/::jsonb|::int\b|::text\[\]/g,'')

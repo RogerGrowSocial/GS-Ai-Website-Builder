@@ -85,3 +85,20 @@ CREATE INDEX IF NOT EXISTS kap_tickets_status_idx ON kap_tickets(status,updated_
 CREATE INDEX IF NOT EXISTS kap_messages_ticket_idx ON kap_messages(ticket_id,created_at);
 CREATE INDEX IF NOT EXISTS kap_events_created_idx ON kap_events(created_at DESC);
 CREATE INDEX IF NOT EXISTS kap_order_notifications_order_idx ON kap_order_notifications(order_id,created_at DESC);
+
+-- The backend connects with its own privileged Postgres connection; no KAP.
+-- customer, staff, order or session data may be exposed through a public API role.
+-- Keep RLS enabled even though the Supabase Data API is disabled for this project.
+ALTER TABLE kap_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_returns ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_templates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_webhook_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE kap_order_notifications ENABLE ROW LEVEL SECURITY;

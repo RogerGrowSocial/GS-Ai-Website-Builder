@@ -11,6 +11,8 @@ const PORT = Number(process.env.PORT || 10000);
 const dbUrl = process.env.DATABASE_URL;
 let pool = dbUrl ? new pg.Pool({ connectionString: dbUrl, ssl: /localhost|127\.0\.0\.1/.test(dbUrl) ? false : { rejectUnauthorized: false }, max: 8 }) : null;
 const demoMode = process.env.KAP_DEMO_MODE === 'true';
+// The persistent staff sandbox is opt-in; it never enables public checkout.
+const sandboxMode = demoMode || process.env.KAP_TEST_CHECKOUT_ENABLED === 'true';
 if(demoMode){
   const { createDemoPool } = await import('./demo-db.js');
   pool=createDemoPool();
@@ -151,7 +153,9 @@ async function queueOrderNotification(orderId,kind,db=pool){
 async function dispatchOrderNotification(orderId,kind){
   const n=await one('SELECT * FROM kap_order_notifications WHERE order_id=$1 AND kind=$2',[orderId,kind]);
   if(!n||n.delivery_status==='provider_accepted'||n.delivery_status==='simulated')return n;
-  if(demoMode)return one("UPDATE kap_order_notifications SET delivery_status='simulated',updated_at=now() WHERE id=$1 RETURNING *",[n.id]);
+  const order=await one('SELECT source FROM kap_orders WHERE id=$1',[orderId]);
+  // Never let a sandbox notification leave KAP., even after live mail is configured.
+  if(demoMode||order?.source==='sandbox')return one("UPDATE kap_order_notifications SET delivery_status='simulated',updated_at=now() WHERE id=$1 RETURNING *",[n.id]);
   if(!process.env.KAP_MAIL_API_KEY||!validEmail(process.env.KAP_FROM_EMAIL))return n;
   // The same provider idempotency key is reused if a staff member explicitly retries an uncertain send.
   try{
@@ -245,13 +249,19 @@ async function handler(req,res){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
     // A separate one-use CSRF claim allows a refreshed tab to recover without revealing it to a cross-origin reader.
     const csrf=secret();await query('UPDATE kap_sessions SET csrf_hash=$1 WHERE token_hash=$2',[sha(csrf),sha(cookies(req).kap_session)]);
-    return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode,testCheckout:demoMode}});
+    return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode,testCheckout:sandboxMode}});
   }
   if(method!=='GET')verifyCsrf(req,user);
   if(p==='/api/logout'&&method==='POST'){await query('DELETE FROM kap_sessions WHERE token_hash=$1',[sha(cookies(req).kap_session)]);res.setHeader('Set-Cookie','kap_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
+  if(p==='/api/testing/orders/latest'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    if(!sandboxMode)throw bad(404,'Testcheckout niet beschikbaar');
+    const item=await one("SELECT id,number,created_at FROM kap_orders WHERE source='sandbox' ORDER BY created_at DESC LIMIT 1");
+    return json(res,200,{item});
+  }
   if(p==='/api/testing/checkout'&&method==='POST'){
     requireRole(user,['owner','manager']);
-    if(!demoMode)throw bad(404,'Testcheckout niet beschikbaar');
+    if(!sandboxMode)throw bad(404,'Testcheckout niet beschikbaar');
     const {data}=await body(req);const sku=clean(data.sku,120),quantity=Number(data.quantity);
     if(!PRODUCT_CATALOG.some(p=>p[0]===sku)||!positive(quantity,5))throw bad(400,'Ongeldig testproduct of aantal');
     // Never accept a visitor's personal details in a disposable demo.
@@ -261,7 +271,7 @@ async function handler(req,res){
   const testPayment=p.match(/^\/api\/testing\/orders\/([0-9a-f-]{36})\/pay$/);
   if(testPayment&&method==='POST'){
     requireRole(user,['owner','manager']);
-    if(!demoMode)throw bad(404,'Testbetaling niet beschikbaar');
+    if(!sandboxMode)throw bad(404,'Testbetaling niet beschikbaar');
     const order=await one('SELECT * FROM kap_orders WHERE id=$1',[testPayment[1]]);
     if(!order||order.source!=='sandbox')throw bad(404,'Testorder niet gevonden');
     if(order.payment_status==='unpaid')await query("UPDATE kap_orders SET payment_status='paid',status='processing',updated_at=now() WHERE id=$1",[order.id]);
@@ -272,11 +282,11 @@ async function handler(req,res){
   }
   if(p==='/api/dashboard'&&method==='GET'){
     const [a,b,c,d,e]=await Promise.all([
-      one(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status IN ('pending','processing'))::int AS active,coalesce(sum(total_cents) FILTER(WHERE payment_status='paid'),0)::int AS paid_total FROM kap_orders`),
-      one(`SELECT count(*) FILTER(WHERE status IN ('open','pending'))::int AS open,count(*) FILTER(WHERE priority IN ('urgent','high') AND status='open')::int AS urgent FROM kap_tickets`),
+      one(`SELECT count(*) FILTER(WHERE source<>'sandbox')::int AS total,count(*) FILTER(WHERE source<>'sandbox' AND status IN ('pending','processing'))::int AS active,coalesce(sum(total_cents) FILTER(WHERE source<>'sandbox' AND payment_status='paid'),0)::int AS paid_total FROM kap_orders`),
+      one(`SELECT count(*) FILTER(WHERE t.status IN ('open','pending'))::int AS open,count(*) FILTER(WHERE t.priority IN ('urgent','high') AND t.status='open')::int AS urgent FROM kap_tickets t LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox'`),
       one('SELECT count(*)::int AS total FROM kap_customers'),
-      query(`SELECT o.id,o.number,o.status,o.payment_status,o.total_cents,o.created_at,c.first_name,c.last_name,c.email FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id ORDER BY o.created_at DESC LIMIT 6`),
-      query(`SELECT t.id,t.number,t.subject,t.status,t.priority,t.updated_at,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id ORDER BY t.updated_at DESC LIMIT 6`)
+      query(`SELECT o.id,o.number,o.status,o.payment_status,o.total_cents,o.created_at,c.first_name,c.last_name,c.email FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.source<>'sandbox' ORDER BY o.created_at DESC LIMIT 6`),
+      query(`SELECT t.id,t.number,t.subject,t.status,t.priority,t.updated_at,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox' ORDER BY t.updated_at DESC LIMIT 6`)
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
   }
   if(p==='/api/products'&&method==='GET')return json(res,200,{items:(await query('SELECT * FROM kap_products ORDER BY title')).rows});
