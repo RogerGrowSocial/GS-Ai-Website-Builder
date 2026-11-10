@@ -282,15 +282,17 @@ async function handler(req,res){
   }
   if(p==='/api/commerce/orders'&&method==='GET'){
     const result=await medusaAdminRead('orders');
-    return json(res,200,{items:(Array.isArray(result.orders)?result.orders:[]).map(medusaOrderSummary),read_only:true});
+    if(!Array.isArray(result.orders)||!Number.isInteger(result.count)||result.count<0) throw bad(502,'Medusa gaf een onvolledig bestellingenoverzicht');
+    return json(res,200,{items:result.orders.map(medusaOrderSummary),total:result.count,shown:result.orders.length,has_more:result.count>result.orders.length,read_only:true});
   }
   if(p==='/api/commerce/products'&&method==='GET'){
     const result=await medusaAdminRead('products');
-    const items=(Array.isArray(result.products)?result.products:[]).map(product=>({
+    if(!Array.isArray(result.products)||!Number.isInteger(result.count)||result.count<0) throw bad(502,'Medusa gaf een onvolledig productoverzicht');
+    const items=result.products.map(product=>({
       id:String(product.id??''),title:String(product.title??''),
       status:String(product.status??''),variants:Array.isArray(product.variants)?product.variants.length:0
     }));
-    return json(res,200,{items,read_only:true});
+    return json(res,200,{items,total:result.count,shown:items.length,has_more:result.count>items.length,read_only:true});
   }
   if(p==='/api/session'&&method==='GET'){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
