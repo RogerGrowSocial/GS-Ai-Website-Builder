@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { launchReadiness } from './launch-readiness.js';
-import { medusaConfigured, medusaAdminRead, medusaOrderSummary } from './medusa-client.js';
+import { medusaConfigured, medusaAdminRead, medusaOrderSummary, medusaPage } from './medusa-client.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 10000);
@@ -281,18 +281,20 @@ async function handler(req,res){
     return json(res,200,{provider:'medusa-v2',configured:medusaConfigured(),mode:'read-only',checkout_enabled:false});
   }
   if(p==='/api/commerce/orders'&&method==='GET'){
-    const result=await medusaAdminRead('orders');
+    const offset=medusaPage(url.searchParams.get('offset')??0);
+    const result=await medusaAdminRead('orders',{offset});
     if(!Array.isArray(result.orders)||!Number.isInteger(result.count)||result.count<0) throw bad(502,'Medusa gaf een onvolledig bestellingenoverzicht');
-    return json(res,200,{items:result.orders.map(medusaOrderSummary),total:result.count,shown:result.orders.length,has_more:result.count>result.orders.length,read_only:true});
+    return json(res,200,{items:result.orders.map(medusaOrderSummary),total:result.count,shown:result.orders.length,offset,has_more:offset+result.orders.length<result.count,read_only:true});
   }
   if(p==='/api/commerce/products'&&method==='GET'){
-    const result=await medusaAdminRead('products');
+    const offset=medusaPage(url.searchParams.get('offset')??0);
+    const result=await medusaAdminRead('products',{offset});
     if(!Array.isArray(result.products)||!Number.isInteger(result.count)||result.count<0) throw bad(502,'Medusa gaf een onvolledig productoverzicht');
     const items=result.products.map(product=>({
       id:String(product.id??''),title:String(product.title??''),
       status:String(product.status??''),variants:Array.isArray(product.variants)?product.variants.length:0
     }));
-    return json(res,200,{items,total:result.count,shown:items.length,has_more:result.count>items.length,read_only:true});
+    return json(res,200,{items,total:result.count,shown:items.length,offset,has_more:offset+items.length<result.count,read_only:true});
   }
   if(p==='/api/session'&&method==='GET'){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
