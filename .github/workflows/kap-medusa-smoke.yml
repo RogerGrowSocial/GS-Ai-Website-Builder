@@ -6,6 +6,10 @@ on:
     paths:
       - 'kap-medusa/apps/backend/**'
       - '.github/workflows/kap-medusa-smoke.yml'
+  pull_request:
+    paths:
+      - 'kap-medusa/apps/backend/**'
+      - '.github/workflows/kap-medusa-smoke.yml'
   workflow_dispatch:
 
 permissions:
