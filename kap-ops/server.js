@@ -194,6 +194,36 @@ async function handler(req,res){
   if(demoMode&&p.startsWith('/api/webhooks/'))throw bad(503,'Integraties zijn uitgeschakeld in de tijdelijke demo');
   if(method!=='GET'&&!['POST','PATCH','DELETE'].includes(method))throw bad(405,'Methode niet toegestaan');
   if(method!=='GET'&&!String(req.headers['content-type']||'').startsWith('application/json'))throw bad(415,'JSON vereist');
+  if(p==='/api/setup/claim'&&method==='POST'){
+    // One-time owner activation. No public sign-up and no persistent reset backdoor.
+    originCheck(req);
+    const expectedToken=process.env.KAP_SETUP_TOKEN||'';
+    const expectedEmail=clean(process.env.KAP_SETUP_EMAIL,254).toLowerCase();
+    const expires=Date.parse(process.env.KAP_SETUP_EXPIRES_AT||'');
+    if(demoMode||(!dbUrl&&process.env.NODE_ENV!=='test')||expectedToken.length<32||!validEmail(expectedEmail)||!Number.isFinite(expires)||Date.now()>expires)throw bad(404,'Accountactivatie niet beschikbaar');
+    const {data}=await body(req,4096);
+    const suppliedToken=String(data.token||'');
+    if(!crypto.timingSafeEqual(Buffer.from(sha(suppliedToken),'hex'),Buffer.from(sha(expectedToken),'hex')))throw bad(403,'Ongeldige activatielink');
+    const email=clean(data.email,254).toLowerCase(),password=String(data.password||'');
+    if(email!==expectedEmail)throw bad(403,'Dit account is niet uitgenodigd');
+    if(password.length<14||password.length>128)throw bad(400,'Gebruik een wachtwoord van 14 tot 128 tekens');
+    const client=await pool.connect();try{
+      await client.query('BEGIN');
+      const receipt=await client.query("INSERT INTO kap_webhook_receipts(id) VALUES('owner-activation:v1') ON CONFLICT DO NOTHING RETURNING id");
+      if(!receipt.rowCount)throw bad(409,'Deze activatielink is al gebruikt');
+      const owners=(await client.query("SELECT id,email,name,role FROM kap_users WHERE role='owner' FOR UPDATE")).rows;
+      if(owners.length!==1||(!owners[0].email.endsWith('.example')&&owners[0].email!==email))throw bad(409,'Beheerdersaccount kan niet automatisch worden vervangen');
+      const owner=owners[0];
+      await client.query('UPDATE kap_users SET email=$1,password_hash=$2 WHERE id=$3',[email,passhash(password),owner.id]);
+      await client.query('DELETE FROM kap_sessions WHERE user_id=$1',[owner.id]);
+      const token=secret(),csrf=secret();
+      await client.query("INSERT INTO kap_sessions(token_hash,user_id,csrf_hash,expires_at) VALUES($1,$2,$3,now()+interval '7 days')",[sha(token),owner.id,sha(csrf)]);
+      await client.query('INSERT INTO kap_events(id,actor_id,entity_type,entity_id,action,details) VALUES($1,$2,$3,$4,$5,$6)',[uid(),owner.id,'user',owner.id,'owner_activated',JSON.stringify({email})]);
+      await client.query('COMMIT');
+      res.setHeader('Set-Cookie',`kap_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${process.env.NODE_ENV==='production'?'; Secure':''}`);
+      return json(res,200,{user:{id:owner.id,email,name:owner.name,role:'owner'},csrf});
+    }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+  }
   if(p==='/api/login'&&method==='POST'){
     originCheck(req);const ip=limitLogin(req);const {data}=await body(req);const email=clean(data.email,254).toLowerCase();
     const user=await one('SELECT * FROM kap_users WHERE email=$1 AND active=true',[email]);

@@ -95,5 +95,19 @@ test('end-to-end order, customer care, return and authorization workflows',async
     r=await request('/api/activity');assert.equal(r.status,200);assert.ok(r.data.items.length>=5);
     r=await request('/api/logout','POST',{});assert.equal(r.status,200);
     r=await request('/api/dashboard');assert.equal(r.status,401);
-  }finally{await new Promise(resolve=>server.close(resolve));await db.close();delete process.env.KAP_ADMIN_EMAIL;delete process.env.KAP_ADMIN_PASSWORD;delete process.env.KAP_PAYMENT_WEBHOOK_SECRET;delete process.env.KAP_MAIL_API_KEY;delete process.env.KAP_FROM_EMAIL;}
+    // Owner claims a one-time activation link without retaining the generated placeholder login.
+    process.env.KAP_SETUP_TOKEN='secure-temporary-activation-token-for-test-only';
+    process.env.KAP_SETUP_EMAIL='job@growsocialmedia.nl';
+    process.env.KAP_SETUP_EXPIRES_AT=new Date(Date.now()+60_000).toISOString();
+    const claim={token:process.env.KAP_SETUP_TOKEN,email:process.env.KAP_SETUP_EMAIL,password:'BrandNewOwnerPassword#2026'};
+    r=await request('/api/setup/claim','POST',{...claim,token:'wrong-token'});assert.equal(r.status,403);
+    r=await request('/api/setup/claim','POST',claim);assert.equal(r.status,200);
+    assert.equal(r.data.user.email,'job@growsocialmedia.nl');
+    cookie=r.headers.get('set-cookie').split(';')[0];csrf=r.data.csrf;
+    r=await request('/api/dashboard');assert.equal(r.status,200); // signed in automatically
+    r=await request('/api/setup/claim','POST',claim);assert.equal(r.status,409); // cannot reuse
+    r=await request('/api/logout','POST',{});assert.equal(r.status,200);
+    r=await request('/api/login','POST',{email:'owner@kap.example',password:process.env.KAP_ADMIN_PASSWORD});assert.equal(r.status,401);
+    r=await request('/api/login','POST',{email:'job@growsocialmedia.nl',password:claim.password});assert.equal(r.status,200);
+  }finally{await new Promise(resolve=>server.close(resolve));await db.close();for(const k of ['KAP_ADMIN_EMAIL','KAP_ADMIN_PASSWORD','KAP_PAYMENT_WEBHOOK_SECRET','KAP_MAIL_API_KEY','KAP_FROM_EMAIL','KAP_SETUP_TOKEN','KAP_SETUP_EMAIL','KAP_SETUP_EXPIRES_AT'])delete process.env[k];}
 });
