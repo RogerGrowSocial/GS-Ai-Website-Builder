@@ -27,6 +27,12 @@ test('end-to-end order, customer care, return and authorization workflows',async
     r=await request('/api/login','POST',{email:'owner@kap.example',password:process.env.KAP_ADMIN_PASSWORD});assert.equal(r.status,200);
     cookie=r.headers.get('set-cookie').split(';')[0];csrf=r.data.csrf;
     r=await request('/api/session');assert.equal(r.status,200);csrf=r.data.csrf;
+    r=await request('/api/commerce/status');assert.equal(r.status,200);
+    assert.equal(r.data.provider,'medusa-v2');
+    assert.equal(r.data.mode,'read-only');
+    assert.equal(r.data.checkout_enabled,false);
+    assert.equal(r.data.configured,false);
+    r=await request('/api/commerce/orders');assert.equal(r.status,503);
     r=await request('/api/products');assert.equal(r.data.items.length,3);
     r=await request('/api/orders','POST',{customer:{email:'shopper@example.com',first_name:'Test',last_name:'Klant'},items:[{sku:'essential-zwart-60',quantity:2}]});
     assert.equal(r.status,201);const orderId=r.data.item.id;assert.equal(r.data.item.total_cents,95000);assert.equal(r.data.item.status,'draft');

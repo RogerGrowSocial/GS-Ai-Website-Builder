@@ -13,6 +13,32 @@ Independent KAP. order management and customer-care service. It does **not** con
 - Database-backed notification outbox with one confirmation per order/event type; optional delivery via an independently configured KAP. sender.
 - Health check and noindex administration pages.
 - Read-only **Livegang** checklist and unit-economics calculator (NL 21% VAT assumption). Nothing in the calculator is stored or billed.
+- Optional, read-only Medusa v2 Admin API overview under **Commerce-engine**. This is a compatibility bridge, not a live checkout or a second order database.
+
+## Hybrid KAP. Studio + Medusa v2 (preparation only)
+
+Our intended separation of responsibilities is:
+
+- **Medusa** will be the sole source of truth for the public product catalog, pricing, tax, stock reservations, checkout, payment capture/refunds, returns, and fulfillment.
+- **KAP. Studio** remains the branded staff workspace for customer conversations, tickets, notes, operational activity, and future read-only commerce insights.
+- The existing KAP. local order tables and `/api/webhooks/checkout` remain in their original pre-launch state. Do **not** feed production Medusa orders into these endpoints: that would double-decrement stock and ignore Medusa's discounts/tax calculations.
+
+The first independent integration seam is a **read-only** server-side Medusa v2 Admin API adapter. It deliberately cannot create, alter, capture, or refund transactions. To opt in on a non-production staging environment, configure:
+
+```text
+KAP_MEDUSA_URL=https://your-medusa-server.example
+KAP_MEDUSA_SECRET_API_KEY=your_medusa_secret_api_key
+```
+
+The URL must be HTTPS except for localhost development. Never expose the secret key to the browser, GitHub, frontend environment or error responses. KAP. Studio staff can view a small Medusa order/product summary through `/api/commerce/orders` and `/api/commerce/products` after login. Empty / unavailable integrations remain visibly non-production.
+
+### Required before enabling public checkout
+
+1. Deploy a separate Medusa v2 server, worker, dedicated PostgreSQL and Redis. Confirm realistic recurring infrastructure cost and backups. Keep real customer data out of the current disposable KAP. preview.
+2. Configure Dutch EUR/BTW, verified appliances/variants, stock locations, approved fulfillment provider, shipping/tax regions and a real payment provider with tested iDEAL webhooks.
+3. Replace KAP.'s local order authority with a read model of Medusa orders. Use signed and idempotent Medusa event subscribers with reconciliation, **without** duplicating payments or inventory. Route returns/refunds to Medusa workflows, not the current administrative return status buttons.
+4. Test failures and retries: duplicate/out-of-order webhooks, insufficient stock, 3-D Secure/iDEAL cancellation, capture/refund, dispatch and tracking, customer mail, backup/restore and staff permissions.
+5. Only after those tests and supplier/legal readiness gates pass, explicitly enable a real checkout. **This branch does not do so.**
 
 ## Deploy (independent Render service)
 

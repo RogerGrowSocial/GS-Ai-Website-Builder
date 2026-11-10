@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { launchReadiness } from './launch-readiness.js';
+import { medusaConfigured, medusaAdminRead, medusaOrderSummary } from './medusa-client.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 10000);
@@ -275,6 +276,22 @@ async function handler(req,res){
     }catch(e){await client.query('ROLLBACK');throw e}finally{client.release()}
   }
   const user=await session(req);if(!user)throw bad(401,'Log opnieuw in');
+  if(p==='/api/commerce/status'&&method==='GET'){
+    // This is an integration status only, not a checkout/live-sales flag.
+    return json(res,200,{provider:'medusa-v2',configured:medusaConfigured(),mode:'read-only',checkout_enabled:false});
+  }
+  if(p==='/api/commerce/orders'&&method==='GET'){
+    const result=await medusaAdminRead('orders');
+    return json(res,200,{items:(Array.isArray(result.orders)?result.orders:[]).map(medusaOrderSummary),read_only:true});
+  }
+  if(p==='/api/commerce/products'&&method==='GET'){
+    const result=await medusaAdminRead('products');
+    const items=(Array.isArray(result.products)?result.products:[]).map(product=>({
+      id:String(product.id??''),title:String(product.title??''),
+      status:String(product.status??''),variants:Array.isArray(product.variants)?product.variants.length:0
+    }));
+    return json(res,200,{items,read_only:true});
+  }
   if(p==='/api/session'&&method==='GET'){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
     // A separate one-use CSRF claim allows a refreshed tab to recover without revealing it to a cross-origin reader.
