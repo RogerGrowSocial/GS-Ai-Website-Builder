@@ -54,6 +54,8 @@ jobs:
       AUTH_CORS: http://127.0.0.1:3000,http://127.0.0.1:9000
       WORKER_MODE: shared
       KAP_MEDUSA_DISABLE_ADMIN: 'true'
+      CI_MEDUSA_ADMIN_EMAIL: ci-admin@kap.invalid
+      CI_MEDUSA_ADMIN_PASSWORD: CI_DISPOSABLE_ONLY_NotForLive_2026
       NODE_OPTIONS: --max-old-space-size=4096
       PORT: '9000'
     steps:
@@ -67,6 +69,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Initialize isolated PostgreSQL schema
         run: npm run migrate
+      - name: Create disposable Medusa admin test identity
+        run: npx medusa user --email "$CI_MEDUSA_ADMIN_EMAIL" --password "$CI_MEDUSA_ADMIN_PASSWORD"
       - name: Build actual Medusa server
         run: npm run build
       - name: Boot real Medusa and validate real API responses
@@ -90,3 +94,4 @@ jobs:
           code=$(curl --silent --output /tmp/kap-admin-response.txt --write-out '%{http_code}' http://127.0.0.1:9000/admin/orders)
           test "$code" = 401
           echo 'Medusa startup, KAP readiness route, and locked-down admin API confirmed'
+          node scripts/studio-connector-smoke.mjs
