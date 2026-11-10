@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { launchReadiness } from './launch-readiness.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 10000);
@@ -221,8 +222,22 @@ async function handler(req,res){
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
   }
   if(p==='/api/products'&&method==='GET')return json(res,200,{items:(await query('SELECT * FROM kap_products ORDER BY title')).rows});
+  if(p==='/api/launch-readiness'&&method==='GET'){
+    const products=(await query('SELECT sku,status,stock_quantity FROM kap_products')).rows;
+    return json(res,200,launchReadiness({demo:demoMode,hasPersistentDatabase:!!dbUrl,products,config:{
+      approvedSkus:process.env.KAP_APPROVED_PRODUCT_SKUS||'',
+      supplierVerified:process.env.KAP_SUPPLIER_VERIFIED==='true',
+      safetyVerified:process.env.KAP_PRODUCT_SAFETY_VERIFIED==='true',
+      weeeVerified:process.env.KAP_WEEE_VERIFIED==='true',
+      pricesVerified:process.env.KAP_PRICES_VERIFIED==='true',
+      mailConfigured:!!process.env.KAP_MAIL_API_KEY&&validEmail(process.env.KAP_FROM_EMAIL),
+      legalVerified:process.env.KAP_LEGAL_VERIFIED==='true',
+      shippingVerified:process.env.KAP_SHIPPING_VERIFIED==='true'
+    }}));
+  }
   if(p==='/api/products'&&method==='PATCH'){
     requireRole(user,['owner','manager']);const {data}=await body(req);if(!['draft','ready','archived'].includes(data.status)||!Number.isInteger(data.stock_quantity)||data.stock_quantity<0||data.stock_quantity>1000000)throw bad(400,'Ongeldige productstatus of voorraad');
+    if(data.status==='ready'&&(demoMode||!String(process.env.KAP_APPROVED_PRODUCT_SKUS||'').split(',').map(s=>s.trim()).includes(clean(data.sku,120))||!['KAP_SUPPLIER_VERIFIED','KAP_PRODUCT_SAFETY_VERIFIED','KAP_WEEE_VERIFIED','KAP_PRICES_VERIFIED'].every(key=>process.env[key]==='true')))throw bad(409,'Dit product mag pas verkoopklaar worden gezet na expliciete leveranciers-, veiligheids-, e-waste- en prijscontrole. De demo kan geen producten vrijgeven.');
     const item=await one('UPDATE kap_products SET status=$1,stock_quantity=$2 WHERE sku=$3 RETURNING *',[data.status,data.stock_quantity,clean(data.sku,120)]);if(!item)throw bad(404,'Product niet gevonden');await audit(user.id,'product',null,'updated',{sku:item.sku,status:item.status});return json(res,200,{item});
   }
   if(p==='/api/orders'&&method==='GET'){

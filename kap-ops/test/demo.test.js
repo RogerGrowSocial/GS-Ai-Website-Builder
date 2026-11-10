@@ -14,7 +14,7 @@ test('free preview runs all read-only dashboards without an external database',a
     const login=await fetch(base+'/api/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:'studio@kap.example',password:process.env.KAP_ADMIN_PASSWORD})});
     assert.equal(login.status,200);
     const cookie=login.headers.get('set-cookie').split(';')[0];
-    for(const route of ['/api/dashboard','/api/orders','/api/customers','/api/tickets','/api/returns','/api/products','/api/activity','/api/config']){
+    for(const route of ['/api/dashboard','/api/orders','/api/customers','/api/tickets','/api/returns','/api/products','/api/launch-readiness','/api/activity','/api/config']){
       const response=await fetch(base+route,{headers:{cookie}});
       assert.equal(response.status,200,route);
     }
@@ -24,5 +24,11 @@ test('free preview runs all read-only dashboards without an external database',a
     assert.equal(config.demo_mode,true);
     assert.equal(config.mail_ready,false);
     assert.equal(config.checkout_ready,false);
+    const readiness=await (await fetch(base+'/api/launch-readiness',{headers:{cookie}})).json();
+    assert.equal(readiness.summary.live,false);
+    assert.equal(readiness.products.sellable,0);
+    const csrf=(await (await fetch(base+'/api/session',{headers:{cookie}})).json()).csrf;
+    const unsafe=await fetch(base+'/api/products',{method:'PATCH',headers:{cookie,'Content-Type':'application/json','X-KAP-CSRF':csrf},body:JSON.stringify({sku:'essential-zwart-60',status:'ready',stock_quantity:5})});
+    assert.equal(unsafe.status,409);
   }finally{await new Promise(resolve=>server.close(resolve))}
 });

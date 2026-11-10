@@ -10,6 +10,7 @@ Independent KAP. order management and customer-care service. It does **not** con
 - Return records, status handling (tracking only; **no actual refunds**), answer templates, products, staff roles and audit log.
 - Signed, replay-window-limited order webhook for future checkout integration. Checkout remains disabled in the current storefront.
 - Health check and noindex administration pages.
+- Read-only **Livegang** checklist and unit-economics calculator (NL 21% VAT assumption). Nothing in the calculator is stored or billed.
 
 ## Deploy (independent Render service)
 
@@ -31,6 +32,14 @@ Keep webhook secrets private. Integrations are **not connected** until independe
 `npm ci && npm test`. Provide `DATABASE_URL` to run against a dedicated local Postgres. Startup creates the `kap_*` schema and three draft-only example products. Product prices remain illustrative.
 
 No sample customers, messages or fake orders are inserted. The dashboard is empty until actual or manually entered data arrives.
+
+### Product release and livegang controls
+
+- All catalog products begin as `draft`, with zero stock. The admin cannot change a product to `ready` unless its SKU is independently listed in `KAP_APPROVED_PRODUCT_SKUS` **and** supplier, product safety, e-waste and pricing flags have been attested. Demo mode **always blocks** this transition.
+- The `GET /api/launch-readiness` endpoint powers the owner-facing checklist. It separates product validation, technology and consumer compliance; checkout deliberately remains blocked regardless of checklist values.
+- Readiness indicators for supplier, safety, e-waste, pricing, company details and shipping start as incomplete. Following real-world verification, the operator may set `KAP_SUPPLIER_VERIFIED`, `KAP_PRODUCT_SAFETY_VERIFIED`, `KAP_WEEE_VERIFIED`, `KAP_PRICES_VERIFIED`, `KAP_LEGAL_VERIFIED`, and `KAP_SHIPPING_VERIFIED` to `true`. **These flags represent a manual attestation, not legal or technical proof.** Do not set them in a preview or without evidence.
+- Pricing estimates are always explicitly illustrative. The margin calculator requires a supplied actual cost and deducts Dutch 21% VAT from the indicative selling price, plus direct-cost estimates. It excludes fixed overhead, marketing, and profit tax.
+- Never enable real orders on the free demo. Before opening checkout, implement and end-to-end test a verified payment adapter, durable backed-up storage, actual product documents, legal pages and real support communication.
 
 ### Free disposable demo
 
