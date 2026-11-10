@@ -74,10 +74,24 @@ test('end-to-end order, customer care, return and authorization workflows',async
     r=await request('/api/tickets','POST',{order_id:sandboxId,subject:'Testvraag'});assert.equal(r.status,201);
     r=await request('/api/returns','POST',{order_id:sandboxId,reason:'Testretour'});assert.equal(r.status,201);
     r=await request('/api/orders/'+sandboxId);assert.equal(r.data.tickets.length,1);assert.equal(r.data.returns.length,1);
+    // Sandbox activity stays visible for QA, but never inflates actual customer value or KPIs.
+    r=await request('/api/customers');
+    const realCustomer=r.data.items.find(c=>c.email==='shopper@example.com');
+    const testCustomer=r.data.items.find(c=>c.email==='testbestelling@voorbeeld.invalid');
+    assert.equal(realCustomer.order_count,1);
+    assert.equal(realCustomer.lifetime_cents,95000);
+    assert.equal(testCustomer.order_count,0);
+    assert.equal(testCustomer.lifetime_cents,0);
+    assert.equal(testCustomer.has_sandbox_data,true);
+    r=await request('/api/tickets');
+    assert.equal(r.data.items.find(t=>t.order_id===sandboxId).order_source,'sandbox');
+    r=await request('/api/returns');
+    assert.equal(r.data.items.find(t=>t.order_id===sandboxId).order_source,'sandbox');
     delete process.env.KAP_MAIL_API_KEY;delete process.env.KAP_FROM_EMAIL;
     r=await request('/api/team','POST',{name:'KAP Support',email:'support@kap.example',role:'support',password:'TemporarySecurePass#123'});assert.equal(r.status,201);
     r=await request('/api/dashboard');assert.equal(r.status,200);assert.equal(r.data.orders.total,1);assert.equal(r.data.tickets.open,1);
     assert.equal(r.data.orders.paid_total,95000); // never count simulated payments as revenue
+    assert.equal(r.data.customers.total,1); // exclude the sandbox-only test customer
     r=await request('/api/activity');assert.equal(r.status,200);assert.ok(r.data.items.length>=5);
     r=await request('/api/logout','POST',{});assert.equal(r.status,200);
     r=await request('/api/dashboard');assert.equal(r.status,401);

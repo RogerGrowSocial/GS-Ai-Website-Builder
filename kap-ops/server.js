@@ -284,7 +284,10 @@ async function handler(req,res){
     const [a,b,c,d,e]=await Promise.all([
       one(`SELECT count(*) FILTER(WHERE source<>'sandbox')::int AS total,count(*) FILTER(WHERE source<>'sandbox' AND status IN ('pending','processing'))::int AS active,coalesce(sum(total_cents) FILTER(WHERE source<>'sandbox' AND payment_status='paid'),0)::int AS paid_total FROM kap_orders`),
       one(`SELECT count(*) FILTER(WHERE t.status IN ('open','pending'))::int AS open,count(*) FILTER(WHERE t.priority IN ('urgent','high') AND t.status='open')::int AS urgent FROM kap_tickets t LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox'`),
-      one('SELECT count(*)::int AS total FROM kap_customers'),
+      // Test-only customers should never inflate the real customer KPI.
+      one(`SELECT count(*)::int AS total FROM kap_customers c
+        WHERE NOT EXISTS (SELECT 1 FROM kap_orders s WHERE s.customer_id=c.id AND s.source='sandbox')
+           OR EXISTS (SELECT 1 FROM kap_orders r WHERE r.customer_id=c.id AND r.source<>'sandbox')`),
       query(`SELECT o.id,o.number,o.status,o.payment_status,o.total_cents,o.created_at,c.first_name,c.last_name,c.email FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.source<>'sandbox' ORDER BY o.created_at DESC LIMIT 6`),
       query(`SELECT t.id,t.number,t.subject,t.status,t.priority,t.updated_at,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox' ORDER BY t.updated_at DESC LIMIT 6`)
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
@@ -337,7 +340,11 @@ async function handler(req,res){
     return json(res,200,{item});
   }
   if(p==='/api/customers'&&method==='GET'){
-    const search=clean(url.searchParams.get('q'),100);const rows=await query(`SELECT c.*,count(o.id)::int AS order_count,coalesce(sum(o.total_cents),0)::int AS lifetime_cents FROM kap_customers c LEFT JOIN kap_orders o ON o.customer_id=c.id WHERE ($1='' OR c.email ILIKE '%'||$1||'%' OR c.first_name ILIKE '%'||$1||'%' OR c.last_name ILIKE '%'||$1||'%') GROUP BY c.id ORDER BY c.created_at DESC LIMIT 100`,[search]);return json(res,200,{items:rows.rows});
+    const search=clean(url.searchParams.get('q'),100);const rows=await query(`SELECT c.*,count(o.id)::int AS order_count,coalesce(sum(o.total_cents),0)::int AS lifetime_cents,
+      EXISTS (SELECT 1 FROM kap_orders s WHERE s.customer_id=c.id AND s.source='sandbox') AS has_sandbox_data
+      FROM kap_customers c LEFT JOIN kap_orders o ON o.customer_id=c.id AND o.source<>'sandbox'
+      WHERE ($1='' OR c.email ILIKE '%'||$1||'%' OR c.first_name ILIKE '%'||$1||'%' OR c.last_name ILIKE '%'||$1||'%')
+      GROUP BY c.id ORDER BY c.created_at DESC LIMIT 100`,[search]);return json(res,200,{items:rows.rows});
   }
   if(p==='/api/customers'&&method==='POST'){
     const {data}=await body(req);const client=await pool.connect();try{const item=await ensureCustomer(client,data);await audit(user.id,'customer',item.id,'upserted');return json(res,201,{item})}finally{client.release()}
@@ -351,7 +358,7 @@ async function handler(req,res){
     const status=clean(url.searchParams.get('status'),30),q=clean(url.searchParams.get('q'),100);const params=[];let where='WHERE 1=1';
     if(status&&status!=='all'){params.push(status);where+=` AND t.status=$${params.length}`}
     if(q){params.push('%'+q+'%');where+=` AND (t.subject ILIKE $${params.length} OR c.email ILIKE $${params.length})`}
-    return json(res,200,{items:(await query(`SELECT t.*,c.email,c.first_name,c.last_name,u.name AS assignee FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_users u ON u.id=t.assigned_to ${where} ORDER BY CASE WHEN t.priority='urgent' THEN 0 WHEN t.priority='high' THEN 1 ELSE 2 END,t.updated_at DESC LIMIT 100`,params)).rows});
+    return json(res,200,{items:(await query(`SELECT t.*,c.email,c.first_name,c.last_name,u.name AS assignee,o.source AS order_source FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_users u ON u.id=t.assigned_to LEFT JOIN kap_orders o ON o.id=t.order_id ${where} ORDER BY CASE WHEN t.priority='urgent' THEN 0 WHEN t.priority='high' THEN 1 ELSE 2 END,t.updated_at DESC LIMIT 100`,params)).rows});
   }
   if(p==='/api/tickets'&&method==='POST'){
     const {data}=await body(req);let customerId=data.customer_id||null;
@@ -392,7 +399,7 @@ async function handler(req,res){
     }
     await query('UPDATE kap_tickets SET updated_at=now(),status=$1 WHERE id=$2',[isReply?'pending':ticket.status,mm[1]]);await audit(user.id,'ticket',mm[1],isReply?'reply_provider_accepted':'note_added');return json(res,201,{item});
   }
-  if(p==='/api/returns'&&method==='GET')return json(res,200,{items:(await query(`SELECT r.*,o.number AS order_number,c.email FROM kap_returns r JOIN kap_orders o ON o.id=r.order_id JOIN kap_customers c ON c.id=o.customer_id ORDER BY r.created_at DESC LIMIT 100`)).rows});
+  if(p==='/api/returns'&&method==='GET')return json(res,200,{items:(await query(`SELECT r.*,o.number AS order_number,o.source AS order_source,c.email FROM kap_returns r JOIN kap_orders o ON o.id=r.order_id JOIN kap_customers c ON c.id=o.customer_id ORDER BY r.created_at DESC LIMIT 100`)).rows});
   if(p==='/api/returns'&&method==='POST'){
     const {data}=await body(req);const order=await one('SELECT id FROM kap_orders WHERE id=$1',[data.order_id]);if(!order)throw bad(404,'Order niet gevonden');
     const item=await one('INSERT INTO kap_returns(id,order_id,reason,notes) VALUES($1,$2,$3,$4) RETURNING *',[uid(),order.id,clean(data.reason,1000)||'Niet opgegeven',clean(data.notes,2000)]);await audit(user.id,'return',item.id,'created');return json(res,201,{item});
