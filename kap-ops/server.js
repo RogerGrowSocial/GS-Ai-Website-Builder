@@ -282,6 +282,15 @@ async function handler(req,res){
     return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode,testCheckout:sandboxMode}});
   }
   if(method!=='GET')verifyCsrf(req,user);
+  if(p==='/api/profile'&&method==='PATCH'){
+    const {data}=await body(req);
+    if(typeof data.name!=='string'||data.name.trim().length<2||data.name.trim().length>80||/[\x00-\x1f\x7f]/.test(data.name))throw bad(400,'Gebruik een naam van 2 tot 80 tekens');
+    const name=data.name.trim();
+    const updated=await one('UPDATE kap_users SET name=$1 WHERE id=$2 RETURNING id,email,name,role',[name,user.id]);
+    if(!updated)throw bad(404,'Account niet gevonden');
+    await audit(user.id,'user',user.id,'profile.name.updated');
+    return json(res,200,{user:safeUser(updated)});
+  }
   if(p==='/api/logout'&&method==='POST'){await query('DELETE FROM kap_sessions WHERE token_hash=$1',[sha(cookies(req).kap_session)]);res.setHeader('Set-Cookie','kap_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
   if(p==='/api/testing/orders/latest'&&method==='GET'){
     requireRole(user,['owner','manager']);

@@ -104,10 +104,16 @@ test('end-to-end order, customer care, return and authorization workflows',async
     r=await request('/api/setup/claim','POST',claim);assert.equal(r.status,200);
     assert.equal(r.data.user.email,'job@growsocialmedia.nl');
     cookie=r.headers.get('set-cookie').split(';')[0];csrf=r.data.csrf;
+    r=await request('/api/profile','PATCH',{name:' '});assert.equal(r.status,400);
+    r=await request('/api/profile','PATCH',{name:'Job'});assert.equal(r.status,200);
+    assert.equal(r.data.user.name,'Job');
+    assert.equal(r.data.user.role,'owner');
+    r=await request('/api/session');assert.equal(r.data.user.name,'Job');csrf=r.data.csrf;
     r=await request('/api/dashboard');assert.equal(r.status,200); // signed in automatically
     r=await request('/api/setup/claim','POST',claim);assert.equal(r.status,409); // cannot reuse
     r=await request('/api/logout','POST',{});assert.equal(r.status,200);
     r=await request('/api/login','POST',{email:'owner@kap.example',password:process.env.KAP_ADMIN_PASSWORD});assert.equal(r.status,401);
     r=await request('/api/login','POST',{email:'job@growsocialmedia.nl',password:claim.password});assert.equal(r.status,200);
+    assert.equal(r.data.user.name,'Job');
   }finally{await new Promise(resolve=>server.close(resolve));await db.close();for(const k of ['KAP_ADMIN_EMAIL','KAP_ADMIN_PASSWORD','KAP_PAYMENT_WEBHOOK_SECRET','KAP_MAIL_API_KEY','KAP_FROM_EMAIL','KAP_SETUP_TOKEN','KAP_SETUP_EMAIL','KAP_SETUP_EXPIRES_AT'])delete process.env[k];}
 });
