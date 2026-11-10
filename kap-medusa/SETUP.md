@@ -41,6 +41,21 @@ KAP_MEDUSA_SECRET_API_KEY=<server-only secret API key>
 
 Gebruik voor productie eigen lange secrets, een besloten backend host, aparte database met back-ups, Redis, bestandstorage en gecontroleerde CORS-origins. Voor productie moeten Medusa server- en workerprocessen afzonderlijk kunnen draaien (`WORKER_MODE=server` en `worker`). Laat de Admin UI aan voor inrichting; CI schakelt de UI alleen tijdens de smoke-test uit.
 
+## Hergebruik van bestaand Supabase-project (preview)
+
+De gekozen Supabase-projectcontainer heeft een bestaande `postgres` database, met oude (mogelijk externe) tabellen en accounts. **Medusa komt NIET in die database of het bestaande public-schema.** De afzonderlijke PostgreSQL-database `kap_commerce` is ingericht met eigenaar `kap_medusa_owner`. Deze eigenaar heeft op dit moment bewust `NOLOGIN`, totdat de veilige verbinding naar de host is gemaakt.
+
+De GitHub-integratietest boot Medusa in een aparte PostgreSQL-database met een zelfstandige eigenaar, migreert Medusa, logt in en verifieert dat de oorspronkelijke database exact ongemoeid blijft.
+
+**Belangrijke Supabase-beperkingen**: een extra database binnen een Supabase-project is geen afzonderlijk door het Dashboard beheerd project. Medusa is een gewone PostgreSQL-client; het gebruikt de Supabase Auth-, Storage- en REST-integraties niet. Voor een betrouwbare productieomgeving is een eigen beheer-/backupbeleid vereist en kan een dedicated project later verstandig zijn.
+
+**Nog nodig vóór deployment**:
+
+1. Kopieer in het **Supabase-project > Connect > Session pooler** de echte host/poort. Gebruik niet de IPv6-only directe `db.<ref>.supabase.co`-host vanaf Render; Render heeft geen outbound IPv6. Verzin het pooleradres niet op basis van regio. Gebruik poort 5432.
+2. Maak `kap_medusa_owner` pas LOGIN met een gegenereerd sterk wachtwoord als het connection string-doel bekend is. Bewaar die DSN uitsluitend als Render server environment `DATABASE_URL`, met database `kap_commerce`, eigen rol, en SSL. Gebruik `NODE_ENV=production` en configureer Redis en secrets.
+3. Deployment van Medusa via een **aparte** Render web service, met de Medusa build- en migrationstappen. Verbind daarna de read-only API-key in KAP Studio server environment; valideer login, order- en product-API, rolrechten en reversibele testdata.
+4. De aparte database is nog NIET gemigreerd of verbonden met de live Medusa-service. Een groene GitHub-run bewijst de migratieaanpak, niet de externe hosting. Geen echte betalingen/checkout vrijgeven.
+
 ## Nog te bouwen vóór commerciële livegang
 
 1. Definitieve producten en varianten (60/90 cm, SKU, EAN, energieklasse, afvoer/recirculatie, certificaten, handleiding, leverancier), regio NL, 21% btw, verzendmethodes en voorraad.
