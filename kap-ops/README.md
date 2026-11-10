@@ -9,6 +9,8 @@ Independent KAP. order management and customer-care service. It does **not** con
 - Customer care tickets, internal notes, provider-controlled outgoing email, signed incoming-mail endpoint.
 - Return records, status handling (tracking only; **no actual refunds**), answer templates, products, staff roles and audit log.
 - Signed, replay-window-limited order webhook for future checkout integration. Checkout remains disabled in the current storefront.
+- Staff-only fictional checkout/payment sandbox, with order and shipment email previews, support ticket and return walkthrough.
+- Database-backed notification outbox with one confirmation per order/event type; optional delivery via an independently configured KAP. sender.
 - Health check and noindex administration pages.
 - Read-only **Livegang** checklist and unit-economics calculator (NL 21% VAT assumption). Nothing in the calculator is stored or billed.
 
@@ -20,6 +22,13 @@ Independent KAP. order management and customer-care service. It does **not** con
 4. Open `/admin/` and verify login, order draft, ticket, note, return and staff permissions. The service fails its readiness check when the database is unavailable.
 5. Connect a *KAP.-specific* verified outbound provider using `KAP_MAIL_API_KEY` and `KAP_FROM_EMAIL`. Configure inbound mail provider to POST a normalized JSON payload to `/api/webhooks/inbound-email`, signed with `KAP_INBOUND_SECRET`. Never point this at GrowSocial inboxes.
 6. Configure the future checkout to POST orders only after products and prices are verified, with `KAP_ORDER_WEBHOOK_SECRET`. An independently verified provider adapter may post payment results to `/api/webhooks/payment` with `KAP_PAYMENT_WEBHOOK_SECRET`. Never expose either secret to the browser. No direct customer checkout is enabled by this service.
+
+### Order flow and customer notifications
+
+- A verified payment event transitions the matching order to paid/processing and records the Dutch order-confirmation in `kap_order_notifications`. Duplicate payment events must not create extra notifications.
+- When an order transitions to shipped, a shipping confirmation is recorded with the tracking reference, if provided. The order detail shows its notifications and linked support/return records.
+- The notification outbox is persistent **only with a real `DATABASE_URL`**. With `KAP_MAIL_API_KEY` and `KAP_FROM_EMAIL` from a verified KAP.-only sender, the application can attempt live email delivery. Until then, real-mode notifications remain queued and cannot be presented as delivered. A provider acceptance is not proof of recipient inbox delivery.
+- Returns are handled as requests and internal status changes; no automatic carrier label, refund or payment-provider credit is issued. Shipping tracking is manually recorded; no live carrier integration exists yet.
 
 ## Webhooks
 
@@ -44,3 +53,5 @@ No sample customers, messages or fake orders are inserted. The dashboard is empt
 ### Free disposable demo
 
 For a **preview only**, set `KAP_DEMO_MODE=true`, omit `DATABASE_URL`, and deploy on a free Render web service. This uses Node's lightweight in-memory SQLite adapter and creates clearly fictional example orders and tickets. Data is **permanently lost** on every restart/sleep/deploy. Mail delivery and all webhooks are disabled in demo mode. Never enter real customer information. This mode is not suitable for operations or production.
+
+Inside the authenticated Studio, open **Testbestelling**. This allows staff to simulate the complete order-management workflow with a draft product and a fictional `.invalid` email: create an order, simulate payment (no charge), view a simulated order-confirmation email, mark the order shipped with test tracking, view the shipping confirmation, open a service ticket and register a return. The two email messages are **previews only**; they are never sent in demo mode. This does **not** turn on the public storefront checkout or prove the real bank/payment-provider integration. The automated test suite separately verifies the signed-payment webhook and database-backed notification flow.

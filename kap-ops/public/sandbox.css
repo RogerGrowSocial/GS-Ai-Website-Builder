@@ -1,0 +1,10 @@
+/* Staff-only simulated checkout. Public store checkout remains blocked. */
+.sandbox-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}
+.sandbox-step{border:1px solid #e0e9df;background:#fff;border-radius:14px;padding:17px;display:flex;align-items:center;gap:12px;color:#91a196}
+.sandbox-step strong{display:grid;place-items:center;flex-shrink:0;width:33px;height:33px;border-radius:50%;background:#edf2ed;color:#6f8773;font-size:12px}
+.sandbox-step span{font-size:12px;font-weight:750}
+.sandbox-step.active{border-color:#a9c5ac;color:#234633;background:#f2f8f0}
+.sandbox-step.active strong{background:#254831;color:#fff}
+.sandbox-email{font-family:inherit;white-space:pre-wrap;line-height:1.65;font-size:12px;background:#f3f7f1;border-radius:9px;padding:15px;overflow-wrap:anywhere}
+.sandbox-steps+.panel,.sandbox-steps~.panel{margin-bottom:18px}
+@media(max-width:750px){.sandbox-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.sandbox-step{padding:12px;gap:8px}.sandbox-step strong{width:27px;height:27px}}

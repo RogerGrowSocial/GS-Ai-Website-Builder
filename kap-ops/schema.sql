@@ -68,8 +68,20 @@ CREATE TABLE IF NOT EXISTS kap_templates (
 CREATE TABLE IF NOT EXISTS kap_webhook_receipts (
  id text PRIMARY KEY, received_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS kap_order_notifications (
+ id uuid PRIMARY KEY,
+ order_id uuid NOT NULL REFERENCES kap_orders(id) ON DELETE CASCADE,
+ kind text NOT NULL CHECK(kind IN ('order_confirmation','shipping_confirmation')),
+ recipient text NOT NULL, subject text NOT NULL, body text NOT NULL,
+ delivery_status text NOT NULL DEFAULT 'queued' CHECK(delivery_status IN ('queued','simulated','provider_accepted','failed_or_unknown')),
+ provider_id text,
+ created_at timestamptz NOT NULL DEFAULT now(),
+ updated_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(order_id,kind)
+);
 CREATE INDEX IF NOT EXISTS kap_orders_created_idx ON kap_orders(created_at DESC);
 CREATE INDEX IF NOT EXISTS kap_orders_customer_idx ON kap_orders(customer_id);
 CREATE INDEX IF NOT EXISTS kap_tickets_status_idx ON kap_tickets(status,updated_at DESC);
 CREATE INDEX IF NOT EXISTS kap_messages_ticket_idx ON kap_messages(ticket_id,created_at);
 CREATE INDEX IF NOT EXISTS kap_events_created_idx ON kap_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS kap_order_notifications_order_idx ON kap_order_notifications(order_id,created_at DESC);

@@ -20,6 +20,7 @@ const ROLES = ['owner', 'manager', 'support', 'fulfillment'];
 const ORDER_STATUS = ['draft','pending','processing','shipped','delivered','cancelled'];
 const TICKET_STATUS = ['open','pending','resolved','closed'];
 const RETURN_STATUS = ['requested','approved','received','rejected','closed'];
+const NOTIFICATION_KINDS = ['order_confirmation','shipping_confirmation'];
 const PRODUCT_CATALOG = [
   ['essential-zwart-60','Essential Zwart 60',47500],
   ['essential-rvs-60','Essential RVS 60',48500],
@@ -119,8 +120,8 @@ async function createOrder(input,actor,source='manual',external=null) {
       const sku=clean(item.sku,120),qty=Number(item.quantity);
       if(!positive(qty,100))throw bad(400,'Ongeldige hoeveelheid');
       const pr=(await client.query('SELECT * FROM kap_products WHERE sku=$1 FOR UPDATE',[sku])).rows[0];
-      if(!pr||pr.status==='archived'||(source!=='manual'&&pr.status!=='ready'))throw bad(400,'Product niet verkoopklaar: '+sku);
-      if(source!=='manual'&&pr.stock_quantity<qty)throw bad(409,'Onvoldoende voorraad: '+sku);
+      if(!pr||pr.status==='archived'||(source==='webhook'&&pr.status!=='ready'))throw bad(400,'Product niet verkoopklaar: '+sku);
+      if(source==='webhook'&&pr.stock_quantity<qty)throw bad(409,'Onvoldoende voorraad: '+sku);
       subtotal+=pr.price_cents*qty;if(subtotal>100000000)throw bad(400,'Orderbedrag te hoog');
       items.push({sku,title:pr.title,quantity:qty,price:pr.price_cents});
     }
@@ -128,10 +129,41 @@ async function createOrder(input,actor,source='manual',external=null) {
     const result=(await client.query(`INSERT INTO kap_orders(id,customer_id,status,subtotal_cents,shipping_cents,total_cents,source,external_reference,shipping_address)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,[id,customer.id,source==='manual'?'draft':'pending',subtotal,shipping,subtotal+shipping,source,external,JSON.stringify(input.shipping_address||{})])).rows[0];
     for(const item of items)await client.query('INSERT INTO kap_order_items(id,order_id,sku,title,quantity,unit_price_cents,line_total_cents) VALUES($1,$2,$3,$4,$5,$6,$7)',[uid(),id,item.sku,item.title,item.quantity,item.price,item.price*item.quantity]);
-    if(source!=='manual')for(const item of items)await client.query('UPDATE kap_products SET stock_quantity=stock_quantity-$1 WHERE sku=$2',[item.quantity,item.sku]);
+    if(source==='webhook')for(const item of items)await client.query('UPDATE kap_products SET stock_quantity=stock_quantity-$1 WHERE sku=$2',[item.quantity,item.sku]);
     await client.query('INSERT INTO kap_events(id,actor_id,entity_type,entity_id,action,details) VALUES($1,$2,$3,$4,$5,$6)',[uid(),actor||null,'order',id,'created',JSON.stringify({source,total_cents:subtotal+shipping})]);
     await client.query('COMMIT');return result;
   }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+}
+async function queueOrderNotification(orderId,kind,db=pool){
+  if(!NOTIFICATION_KINDS.includes(kind))throw bad(400,'Ongeldige notificatie');
+  const order=(await db.query(`SELECT o.*,c.email,c.first_name FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.id=$1`,[orderId])).rows[0];
+  if(!order||order.payment_status!=='paid')return null;
+  const rows=(await db.query('SELECT title,quantity FROM kap_order_items WHERE order_id=$1',[orderId])).rows;
+  const customer=clean(order.first_name,100)||'klant';
+  const subject=kind==='order_confirmation'?`KAP. | Bevestiging bestelling #${order.number}`:`KAP. | Bestelling #${order.number} is verzonden`;
+  const lines=kind==='order_confirmation'
+    ?[`Hoi ${customer},`,'','Je bestelling is bevestigd.','',...rows.map(x=>`${x.quantity} × ${x.title}`),'',`Totaal: € ${(order.total_cents/100).toFixed(2).replace('.',',')}`,'','We houden je op de hoogte van de verzending.']
+    :[`Hoi ${customer},`,'',`Je bestelling #${order.number} is verzonden.`,order.carrier?`Vervoerder: ${order.carrier}`:'',order.tracking_code?`Track & trace: ${order.tracking_code}`:'','Vragen? Neem contact op met KAP. klantenservice.'];
+  const message=lines.filter((v,i)=>v||i===0).join('\n')+'\n\nKAP. Team';
+  return (await db.query(`INSERT INTO kap_order_notifications(id,order_id,kind,recipient,subject,body)
+    VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(order_id,kind) DO NOTHING RETURNING *`,[uid(),orderId,kind,order.email,subject,message])).rows[0]||null;
+}
+async function dispatchOrderNotification(orderId,kind){
+  const n=await one('SELECT * FROM kap_order_notifications WHERE order_id=$1 AND kind=$2',[orderId,kind]);
+  if(!n||n.delivery_status==='provider_accepted'||n.delivery_status==='simulated')return n;
+  if(demoMode)return one("UPDATE kap_order_notifications SET delivery_status='simulated',updated_at=now() WHERE id=$1 RETURNING *",[n.id]);
+  if(!process.env.KAP_MAIL_API_KEY||!validEmail(process.env.KAP_FROM_EMAIL))return n;
+  // The same provider idempotency key is reused if a staff member explicitly retries an uncertain send.
+  try{
+    const response=await fetch('https://api.resend.com/emails',{method:'POST',headers:{Authorization:'Bearer '+process.env.KAP_MAIL_API_KEY,'Content-Type':'application/json','Idempotency-Key':n.id},body:JSON.stringify({from:process.env.KAP_FROM_EMAIL,to:[n.recipient],subject:n.subject,text:n.body})});
+    if(!response.ok)throw new Error('Mailprovider kon notificatie niet bevestigen');
+    const result=await response.json();
+    return one("UPDATE kap_order_notifications SET delivery_status='provider_accepted',provider_id=$1,updated_at=now() WHERE id=$2 RETURNING *",[result.id||null,n.id]);
+  }catch(error){
+    await query("UPDATE kap_order_notifications SET delivery_status='failed_or_unknown',updated_at=now() WHERE id=$1",[n.id]);
+    console.error('KAP. ordernotificatie niet bevestigd:',n.id,error.message);
+    return null;
+  }
 }
 function webhookVerified(req,raw,envKey){
   const key=process.env[envKey];if(!key)throw bad(503,'Integratie niet geconfigureerd');
@@ -185,10 +217,15 @@ async function handler(req,res){
       if(!order)throw bad(404,'Order niet gevonden');
       if(data.currency!==order.currency||Number(data.amount_cents)!==order.total_cents)throw bad(409,'Betaling en orderbedrag komen niet overeen');
       if(data.status==='paid'&&order.payment_status==='refunded')throw bad(409,'Terugbetaalde order kan niet opnieuw worden betaald');
-      await client.query('UPDATE kap_orders SET payment_status=$1,updated_at=now() WHERE id=$2',[data.status,order.id]);
+      await client.query("UPDATE kap_orders SET payment_status=$1,status=CASE WHEN $1='paid' AND status='pending' THEN 'processing' ELSE status END,updated_at=now() WHERE id=$2",[data.status,order.id]);
       await client.query('INSERT INTO kap_webhook_receipts(id) VALUES($1)',['payment:'+receipt]);
       await client.query('INSERT INTO kap_events(id,entity_type,entity_id,action,details) VALUES($1,$2,$3,$4,$5)',[uid(),'order',order.id,'payment_webhook',JSON.stringify({status:data.status,event_id:receipt})]);
-      await client.query('COMMIT');return json(res,200,{ok:true,order_id:order.id});
+      if(data.status==='paid')await queueOrderNotification(order.id,'order_confirmation',client);
+      await client.query('COMMIT');
+      if(data.status==='paid'){
+        await dispatchOrderNotification(order.id,'order_confirmation');
+      }
+      return json(res,200,{ok:true,order_id:order.id});
     }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
   }
   if(p==='/api/webhooks/inbound-email'&&method==='POST'){
@@ -208,10 +245,31 @@ async function handler(req,res){
     // CSRF is rotated only on login and is stored hashed. Frontend gets it from a session-bound response.
     // A separate one-use CSRF claim allows a refreshed tab to recover without revealing it to a cross-origin reader.
     const csrf=secret();await query('UPDATE kap_sessions SET csrf_hash=$1 WHERE token_hash=$2',[sha(csrf),sha(cookies(req).kap_session)]);
-    return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode}});
+    return json(res,200,{user:safeUser(user),csrf,features:{mail:!demoMode&&!!(process.env.KAP_MAIL_API_KEY&&process.env.KAP_FROM_EMAIL),inbound:!demoMode&&!!process.env.KAP_INBOUND_SECRET,checkout:false,demo:demoMode,testCheckout:demoMode}});
   }
   if(method!=='GET')verifyCsrf(req,user);
   if(p==='/api/logout'&&method==='POST'){await query('DELETE FROM kap_sessions WHERE token_hash=$1',[sha(cookies(req).kap_session)]);res.setHeader('Set-Cookie','kap_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');return json(res,200,{ok:true})}
+  if(p==='/api/testing/checkout'&&method==='POST'){
+    requireRole(user,['owner','manager']);
+    if(!demoMode)throw bad(404,'Testcheckout niet beschikbaar');
+    const {data}=await body(req);const sku=clean(data.sku,120),quantity=Number(data.quantity);
+    if(!PRODUCT_CATALOG.some(p=>p[0]===sku)||!positive(quantity,5))throw bad(400,'Ongeldig testproduct of aantal');
+    // Never accept a visitor's personal details in a disposable demo.
+    const order=await createOrder({customer:{email:'testbestelling@voorbeeld.invalid',first_name:'KAP',last_name:'Testklant'},items:[{sku,quantity}]},user.id,'sandbox','sandbox:'+uid());
+    return json(res,201,{item:order,payment_mode:'simulated',warning:'Geen betaling en geen e-mail verzonden. Alleen fictieve gegevens.'});
+  }
+  const testPayment=p.match(/^\/api\/testing\/orders\/([0-9a-f-]{36})\/pay$/);
+  if(testPayment&&method==='POST'){
+    requireRole(user,['owner','manager']);
+    if(!demoMode)throw bad(404,'Testbetaling niet beschikbaar');
+    const order=await one('SELECT * FROM kap_orders WHERE id=$1',[testPayment[1]]);
+    if(!order||order.source!=='sandbox')throw bad(404,'Testorder niet gevonden');
+    if(order.payment_status==='unpaid')await query("UPDATE kap_orders SET payment_status='paid',status='processing',updated_at=now() WHERE id=$1",[order.id]);
+    await queueOrderNotification(order.id,'order_confirmation');
+    await dispatchOrderNotification(order.id,'order_confirmation');
+    await audit(user.id,'order',order.id,'sandbox_payment_success',{real_money:false});
+    return json(res,200,{ok:true,order_id:order.id,payment_mode:'simulated',money_moved:false});
+  }
   if(p==='/api/dashboard'&&method==='GET'){
     const [a,b,c,d,e]=await Promise.all([
       one(`SELECT count(*)::int AS total,count(*) FILTER(WHERE status IN ('pending','processing'))::int AS active,coalesce(sum(total_cents) FILTER(WHERE payment_status='paid'),0)::int AS paid_total FROM kap_orders`),
@@ -252,7 +310,7 @@ async function handler(req,res){
   const om=p.match(/^\/api\/orders\/([0-9a-f-]{36})$/);
   if(om&&method==='GET'){
     const item=await one(`SELECT o.*,row_to_json(c) AS customer FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.id=$1`,[om[1]]);if(!item)throw bad(404,'Order niet gevonden');
-    const [items,events]=await Promise.all([query('SELECT * FROM kap_order_items WHERE order_id=$1',[om[1]]),query("SELECT e.*,u.name AS actor FROM kap_events e LEFT JOIN kap_users u ON u.id=e.actor_id WHERE e.entity_type='order' AND e.entity_id=$1 ORDER BY e.created_at DESC",[om[1]])]);return json(res,200,{item,items:items.rows,events:events.rows});
+    const [items,events,notifications,tickets,returns]=await Promise.all([query('SELECT * FROM kap_order_items WHERE order_id=$1',[om[1]]),query("SELECT e.*,u.name AS actor FROM kap_events e LEFT JOIN kap_users u ON u.id=e.actor_id WHERE e.entity_type='order' AND e.entity_id=$1 ORDER BY e.created_at DESC",[om[1]]),query('SELECT * FROM kap_order_notifications WHERE order_id=$1 ORDER BY created_at DESC',[om[1]]),query('SELECT id,number,subject,status FROM kap_tickets WHERE order_id=$1 ORDER BY updated_at DESC',[om[1]]),query('SELECT id,status,reason,resolution FROM kap_returns WHERE order_id=$1 ORDER BY created_at DESC',[om[1]])]);return json(res,200,{item,items:items.rows,events:events.rows,notifications:notifications.rows,tickets:tickets.rows,returns:returns.rows});
   }
   if(om&&method==='PATCH'){
     requireRole(user,['owner','manager','fulfillment']);const {data}=await body(req);const previous=await one('SELECT * FROM kap_orders WHERE id=$1',[om[1]]);if(!previous)throw bad(404,'Order niet gevonden');
@@ -261,7 +319,12 @@ async function handler(req,res){
     if(status==='shipped'&&previous.payment_status!=='paid')throw bad(409,'Verzending vereist een bevestigde betaling');
     if(previous.status==='cancelled'&&status!=='cancelled')throw bad(409,'Geannuleerde orders zijn vergrendeld');
     const item=await one('UPDATE kap_orders SET status=$1,fulfillment_status=$2,tracking_code=$3,carrier=$4,updated_at=now() WHERE id=$5 RETURNING *',[status,fulfillment,clean(data.tracking_code??previous.tracking_code,100),clean(data.carrier??previous.carrier,100),om[1]]);
-    await audit(user.id,'order',om[1],'status_updated',{from:previous.status,to:status,fulfillment});return json(res,200,{item});
+    await audit(user.id,'order',om[1],'status_updated',{from:previous.status,to:status,fulfillment});
+    if(status==='shipped'&&previous.status!=='shipped'){
+      await queueOrderNotification(item.id,'shipping_confirmation');
+      await dispatchOrderNotification(item.id,'shipping_confirmation');
+    }
+    return json(res,200,{item});
   }
   if(p==='/api/customers'&&method==='GET'){
     const search=clean(url.searchParams.get('q'),100);const rows=await query(`SELECT c.*,count(o.id)::int AS order_count,coalesce(sum(o.total_cents),0)::int AS lifetime_cents FROM kap_customers c LEFT JOIN kap_orders o ON o.customer_id=c.id WHERE ($1='' OR c.email ILIKE '%'||$1||'%' OR c.first_name ILIKE '%'||$1||'%' OR c.last_name ILIKE '%'||$1||'%') GROUP BY c.id ORDER BY c.created_at DESC LIMIT 100`,[search]);return json(res,200,{items:rows.rows});
@@ -283,6 +346,7 @@ async function handler(req,res){
   if(p==='/api/tickets'&&method==='POST'){
     const {data}=await body(req);let customerId=data.customer_id||null;
     if(data.customer_email){const client=await pool.connect();try{const c=await ensureCustomer(client,{email:data.customer_email});customerId=c.id}finally{client.release()}}
+    if(data.order_id){const related=await one('SELECT customer_id FROM kap_orders WHERE id=$1',[data.order_id]);if(!related)throw bad(404,'Gekoppelde order niet gevonden');if(customerId&&customerId!==related.customer_id)throw bad(409,'Dit ticket hoort bij een andere klant');customerId=related.customer_id}
     const item=await one('INSERT INTO kap_tickets(id,customer_id,order_id,subject,priority,category) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[uid(),customerId,data.order_id||null,clean(data.subject,250)||'Klantvraag',['low','normal','high','urgent'].includes(data.priority)?data.priority:'normal',clean(data.category,50)||'question']);
     await audit(user.id,'ticket',item.id,'created');return json(res,201,{item});
   }
