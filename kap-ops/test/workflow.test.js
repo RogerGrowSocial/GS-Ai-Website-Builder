@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import http from 'node:http';
 import { PGlite } from '@electric-sql/pglite';
 process.env.KAP_TEST_CHECKOUT_ENABLED='true';
 const { server, migrate, setDatabaseForTests } = await import('../server.js');
@@ -33,6 +34,49 @@ test('end-to-end order, customer care, return and authorization workflows',async
     assert.equal(r.data.checkout_enabled,false);
     assert.equal(r.data.configured,false);
     r=await request('/api/commerce/orders');assert.equal(r.status,503);
+    // Exercise the actual KAP HTTP endpoints against a local fake Medusa server.
+    // No real Medusa service, payment or customer data is used.
+    const stubCalls=[];
+    const fakeMedusa=http.createServer((req,res)=>{
+      stubCalls.push({url:req.url,authorization:req.headers.authorization,method:req.method});
+      res.setHeader('Content-Type','application/json');
+      if(req.headers.authorization!=='Basic integration_fake_token'||req.method!=='GET'){
+        res.statusCode=401;return res.end(JSON.stringify({message:'invalid token'}));
+      }
+      const u=new URL(req.url,'http://localhost');
+      const offset=Number(u.searchParams.get('offset'));
+      if(u.pathname==='/admin/orders'){
+        const orders=Array.from({length:offset===0?30:1},(_,i)=>({
+          id:'order_'+(offset+i+1),display_id:offset+i+1,created_at:'2026-11-10T00:00:00Z',
+          email:'buyer@example.invalid',total:475.55,currency_code:'eur'
+        }));
+        return res.end(JSON.stringify({orders,count:31,limit:30,offset}));
+      }
+      if(u.pathname==='/admin/products'){
+        return res.end(JSON.stringify({products:[{id:'prod_1',title:'KAP 60',variants:[{id:'v1'}],status:'draft'}],count:1,limit:30,offset}));
+      }
+      res.statusCode=404;res.end(JSON.stringify({error:'not found'}));
+    });
+    await new Promise(resolve=>fakeMedusa.listen(0,'127.0.0.1',resolve));
+    try{
+      process.env.KAP_MEDUSA_URL='http://127.0.0.1:'+fakeMedusa.address().port;
+      process.env.KAP_MEDUSA_SECRET_API_KEY='integration_fake_token';
+      r=await request('/api/commerce/status');assert.equal(r.status,200);assert.equal(r.data.configured,true);
+      r=await request('/api/commerce/orders?offset=0');assert.equal(r.status,200);
+      assert.equal(r.data.total,31);assert.equal(r.data.shown,30);assert.equal(r.data.has_more,true);
+      assert.equal(r.data.items[0].total_cents,47555);
+      r=await request('/api/commerce/orders?offset=30');assert.equal(r.status,200);
+      assert.equal(r.data.total,31);assert.equal(r.data.offset,30);assert.equal(r.data.shown,1);assert.equal(r.data.has_more,false);
+      r=await request('/api/commerce/orders?offset=31');assert.equal(r.status,400);
+      r=await request('/api/commerce/products?offset=0');assert.equal(r.status,200);
+      assert.equal(r.data.total,1);assert.equal(r.data.items[0].variants,1);
+      assert.equal(stubCalls.length,3);
+      assert.ok(stubCalls.every(c=>c.authorization==='Basic integration_fake_token'&&c.method==='GET'));
+    }finally{
+      await new Promise(resolve=>fakeMedusa.close(resolve));
+      delete process.env.KAP_MEDUSA_URL;
+      delete process.env.KAP_MEDUSA_SECRET_API_KEY;
+    }
     r=await request('/api/products');assert.equal(r.data.items.length,3);
     r=await request('/api/orders','POST',{customer:{email:'shopper@example.com',first_name:'Test',last_name:'Klant'},items:[{sku:'essential-zwart-60',quantity:2}]});
     assert.equal(r.status,201);const orderId=r.data.item.id;assert.equal(r.data.item.total_cents,95000);assert.equal(r.data.item.status,'draft');
