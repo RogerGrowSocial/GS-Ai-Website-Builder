@@ -2,7 +2,8 @@ import { calculateUnitMargin } from './margin.js';
 import { greetingForDate, weekdayForDate, firstName } from './greeting.js';
 const $ = selector => document.querySelector(selector);
 const state={user:null,csrf:null,page:'dashboard',params:{},config:{},products:[],team:[],testOrderId:null,testCheckout:false,skipTestResume:false};
-const pageNames={dashboard:'OVERZICHT',orders:'BESTELLINGEN',customers:'KLANTEN',tickets:'KLANTENSERVICE',returns:'RETOUREN',sandbox:'TESTBESTELLING',launch:'LIVEGANG',products:'PRODUCTSTATUS',templates:'ANTWOORDSJABLONEN',team:'TEAM',activity:'ACTIVITEITENLOG',settings:'INSTELLINGEN'};
+const commerceOffsets={orders:0,products:0};
+const pageNames={dashboard:'OVERZICHT',orders:'BESTELLINGEN',customers:'KLANTEN',tickets:'KLANTENSERVICE',returns:'RETOUREN',sandbox:'TESTBESTELLING',launch:'LIVEGANG',products:'PRODUCTSTATUS',commerce:'COMMERCE-ENGINE',templates:'ANTWOORDSJABLONEN',team:'TEAM',activity:'ACTIVITEITENLOG',settings:'INSTELLINGEN'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const euro=n=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format((Number(n)||0)/100);
 const date=s=>s?new Intl.DateTimeFormat('nl-NL',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(s)):'—';
@@ -55,7 +56,35 @@ async function navigate(page,params={}){
   setContent('<div class="empty">Gegevens laden…</div>');
   try{await views[page]()}catch(e){setContent(head('KAP. STUDIO','Er ging iets mis',e.message));toast(e.message,true)}
 }
-const views={dashboard,orders,customers,tickets,returns,sandbox,launch,products,templates,team,activity,settings};
+const views={dashboard,orders,customers,tickets,returns,sandbox,launch,products,commerce,templates,team,activity,settings};
+
+async function commerce(){
+  const status=await api('/commerce/status');
+  const title=head('KAP. / COMMERCE-ENGINE','Medusa-koppeling','De handelsmotor en de eigen KAP. klantenservice blijven bewust gescheiden.');
+  const warning='<div class="info-callout"><strong>Alleen-lezen integratie.</strong> De reguliere bestellingen en productstatus in KAP. Studio komen nog uit onze eigen database. Deze pagina activeert geen webshopcheckout, betaling, voorraadmutatie of retourbetaling.</div>';
+  if(!status.configured){
+    setContent(title+warning+panel('Medusa v2 — nog niet gekoppeld',empty('Veilige integratie voorbereid','Configureer eerst een aparte Medusa v2-server en een secret API key. Tot die tijd blijft onze bestaande KAP. Studio zelfstandig werken.')));
+    return;
+  }
+  const [orders,products]=await Promise.all([api('/commerce/orders?offset='+commerceOffsets.orders),api('/commerce/products?offset='+commerceOffsets.products)]);
+  const money=o=>o.currency==='EUR'&&o.total_cents!==null?euro(o.total_cents):'—';
+  const orderRows=orders.items.map(o=>`<tr><td><strong>${esc(o.display_id??o.id)}</strong><div class="muted">${dateTime(o.created_at)}</div></td><td>${esc(o.email)}</td><td>${esc(o.payment_status)}</td><td>${esc(o.fulfillment_status)}</td><td>${money(o)}</td></tr>`).join('');
+  const productRows=products.items.map(p=>`<tr><td><strong>${esc(p.title)}</strong></td><td>${esc(p.status)}</td><td>${p.variants}</td></tr>`).join('');
+  const pager=(kind,result)=>{
+    const first=result.shown?result.offset+1:0,last=result.offset+result.shown;
+    const previous=result.offset>0?`<button class="secondary" data-commerce-page="${kind}" data-commerce-offset="${Math.max(0,result.offset-30)}">← Vorige</button>`:'';
+    const next=result.has_more?`<button class="secondary" data-commerce-page="${kind}" data-commerce-offset="${result.offset+30}">Volgende →</button>`:'';
+    return `<div class="split-actions"><span class="muted">${first}–${last} van ${result.total}</span><div class="actions">${previous}${next}</div></div>`;
+  };
+  setContent(title+warning+
+    panel(`Medusa-bestellingen (${orders.total})`,(orders.items.length?table(['Order','Klant','Betaling','Levering','Totaal'],orderRows):empty('Geen bestellingen op deze pagina','Blader terug of voeg een testbestelling toe in de afzonderlijke Medusa-testomgeving.'))+pager('orders',orders))+
+    panel(`Medusa-producten (${products.total})`,(products.items.length?table(['Product','Status','Varianten'],productRows):empty('Geen producten op deze pagina','Blader terug of voeg een testproduct toe in de afzonderlijke Medusa-testomgeving.'))+pager('products',products)));
+  document.querySelectorAll('[data-commerce-page]').forEach(button=>button.addEventListener('click',()=>tryAction(async()=>{
+    const kind=button.dataset.commercePage,offset=Number(button.dataset.commerceOffset);
+    if(!['orders','products'].includes(kind)||!Number.isSafeInteger(offset)||offset<0)return;
+    commerceOffsets[kind]=offset;await commerce();
+  })));
+}
 
 async function dashboard(){
   const r=await api('/dashboard');$('#order-badge').textContent=r.orders.active||'';$('#ticket-badge').textContent=r.tickets.open||'';
