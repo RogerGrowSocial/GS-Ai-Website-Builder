@@ -1,43 +1,53 @@
 # KAP — Medusa v2 commerce-service
 
-## Architectuur (besloten)
+## Huidige staat
 
-KAP Storefront → Medusa Store API → Medusa order/stock/payment/return workflows.
-KAP Studio → Medusa Admin API (read-only views) + eigen customer-care database.
+**Geïnstalleerd in code, geïsoleerd getest, nog niet permanent gehost of live.**
 
-**Een enkele handelsbron**: Medusa wordt eigenaar van productvarianten, tarieven, belasting, voorraad, betalingen, retouren, verzendingen en orders. De bestaande `kap_orders`, `kap_products` en oudere signed checkout hooks mogen nooit parallel productieorders accepteren wanneer Medusa live is. KAP Studio houdt alleen klantcontact, interne notities, teamrollen en audit-events. Echte bestellingen in Studio worden uitsluitend uit Medusa gelezen.
+- Medusa v2 backend: `kap-medusa/apps/backend`; versies vastgezet in `package.json` én `package-lock.json`.
+- Bestaande KAP Studio: `kap-ops`, met beveiligde read-only Admin API-adapter.
+- GitHub QA: `.github/workflows/kap-medusa-smoke.yml` boot Medusa met PostgreSQL 16 en Redis 7, bouwt de app, maakt een tijdelijke admin en secret API key, controleert beide echte Medusa list endpoints met de KAP Studio-adapter en verifieert een ongeldige sleutel. Deze testdata worden na de GitHub-run vernietigd.
+- Er is nog **geen** blijvende Medusa-database, Medusa-host, actieve provider, publieke checkout, order-event synchronization of klantbetaling. KAP Studio preview is niet vervangen.
 
-## Installatie
+## Architectuur
 
-Installeer uitsluitend via de officiële Medusa v2 starter, niet via gekopieerde broncode of een onbevestigde dependencyversie:
+- KAP Storefront → Medusa Store API → Medusa checkout, order, tax, stock en fulfillment workflows.
+- KAP Studio → Medusa Admin API voor commerciële data + KAP database voor helpdesk, interne notities, rollen en auditlog.
+- **Medusa is straks de enige commerciële bron.** Bestaande `kap_orders`/`kap_products` en signed checkout hooks mogen niet in parallel blijven schrijven wanneer de productiecheckout op Medusa overgaat.
+- Tot het moment van omzetting blijft de bestaande KAP orderdata ongemoeid en de Medusa Studio-informatie alleen-lezen.
+
+## Lokaal draaien
+
+Gebruik een **aparte** PostgreSQL database en Redis, nooit een GrowSocial of bestaande KAP Studio productie-database.
 
 ```bash
-npx create-medusa-app@latest kap-commerce
+cd kap-medusa/apps/backend
+cp .env.example .env
+# Vul eigen development DATABASE_URL, REDIS_URL, JWT_SECRET en COOKIE_SECRET in
+npm ci
+npm run migrate
+npm run build
+npm run start
 ```
 
-Kies zonder extra storefront: de bestaande KAP Storefront blijft de frontend. Medusa v2 vereist een geïsoleerde PostgreSQL database en voor productie Redis. Maak geen verbinding met GrowSocial databases, klantaccounts of inboxen.
+Medusa heeft Node.js >=22.23.4 nodig. `.env` blijft buiten Git. Test `http://localhost:9000/kap-readiness`, `http://localhost:9000/health` en admin login met een eigen beheeraccount. De KAP-readiness endpoint meldt bewust `checkout_enabled:false` en `payments_enabled:false`: opstart betekent nog geen verkoopvrijgave.
 
-## Veiligheid en omgeving
+KAP Studio server environment (nooit als browser-variabelen):
 
-Voor lokale ontwikkeling is één Medusa-instantie in shared worker-modus voldoende. Voor productie:
+```bash
+KAP_MEDUSA_URL=https://de-echte-medusa-host/
+KAP_MEDUSA_SECRET_API_KEY=<server-only secret API key>
+```
 
-- Separate server- en worker-processen voor Medusa, met dezelfde applicatieversie.
-- Dedicated backed-up PostgreSQL en Redis, secrets in host-environment en passende S3-compatible file storage.
-- Configureer `DATABASE_URL`, `REDIS_URL`, `COOKIE_SECRET`, `JWT_SECRET`, `ADMIN_CORS`, `AUTH_CORS`, `STORE_CORS` en `MEDUSA_BACKEND_URL` volgens officiële deployment-instructies.
-- Voer `medusa db:migrate` uit vóór opstart; monitor beide processen en controleer `/health`.
-- Maak een servicegebruiker en secret API key in Medusa Admin met de kleinst mogelijke bevoegdheden. Verbind de KAP Studio backend via `KAP_MEDUSA_URL` en `KAP_MEDUSA_SECRET_API_KEY`; nooit via browser of broncode.
-- Koppel echte Mollie/iDEAL pas na gecontroleerde providerinstallatie en onafhankelijke test van signature checks, server-side prijsberekening en webhook-idempotentie.
+Gebruik voor productie eigen lange secrets, een besloten backend host, aparte database met back-ups, Redis, bestandstorage en gecontroleerde CORS-origins. Voor productie moeten Medusa server- en workerprocessen afzonderlijk kunnen draaien (`WORKER_MODE=server` en `worker`). Laat de Admin UI aan voor inrichting; CI schakelt de UI alleen tijdens de smoke-test uit.
 
-## Productie-overgang — verplicht
+## Nog te bouwen vóór commerciële livegang
 
-1. Test lokale Medusa installatie met alleen fictieve producten; leg de productvelden vast voor KAP afzuigkappen (SKU, 60/90 cm, finish, afmetingen, afvoer/recirculatie, energieklasse, EAN, handleiding, garantie).
-2. Maak de Store API cart- en checkout-integratie, met correcte BTW, verzendkosten, orderbevestiging en voorraadreservering. **Geen browser-side orderbedragen vertrouwen.**
-3. Verplaats read-only orderdetails en ordergeschiedenis naar KAP Studio, gekoppeld aan servicecases met Medusa order IDs. Beperk inzage op rollen en log toegang.
-4. Bouw een idempotente event/inbox of webhook-consumer voor klantmeldingen; verwerk retries, out-of-order events en periodieke reconciliatie. Laat Medusa de enige instantie blijven die voorraad en betalingen muteert.
-5. Test dubbele betalingen, ontbrekende webhooks, geweigerde betaling, overselling, annulering, gedeeltelijke verzending, refund en retour, e-mailaflevering, restore van back-up en rolrechten. Pas daarna de checkout expliciet vrijgeven.
+1. Definitieve producten en varianten (60/90 cm, SKU, EAN, energieklasse, afvoer/recirculatie, certificaten, handleiding, leverancier), regio NL, 21% btw, verzendmethodes en voorraad.
+2. Store API-koppeling, browserwinkelwagen, verzend- en prijsberekening, iDEAL via gecontroleerde provider, payment-event idempotentie, bevestigingse-mails, bestelstatussen en retour-/refundflows.
+3. Medusa order-ID-relatie met KAP Studio helpdesk, veilige gegevensrechten, event-reconciliatie en livegangschakelaar die de oude commerciële schrijfroute uitschakelt.
+4. End-to-end test van betaalfouten, retries, dubbele callbacks, overselling, annuleringen, gedeeltelijke refunds, verzending, helpdesk, mails, database-backup en herstel.
 
-## Huidige status
+Geen live checkout of verborgen betaalde hosting activeren op basis van alleen een groene technische CI-run.
 
-Dit is een **ontwikkelbranch**, geen actieve installatie. De Commerce-engine in KAP Studio is read-only en maximaal 30 resultaten per categorie; totalen/waarschuwingen maken gedeeltelijke overzichten zichtbaar. Medusa-server, Redis, provider, checkout en echte verkoopproducten zijn nog niet gekoppeld. De huidige KAP preview blijft beschermd. Een betaalde hostingdienst of echte klantbetaling is **niet** opgestart.
-
-Officiële documentatie: https://docs.medusajs.com/learn/installation en https://docs.medusajs.com/learn/deployment/general
+Officiële bron: https://docs.medusajs.com/learn/installation
