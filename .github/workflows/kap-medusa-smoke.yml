@@ -69,6 +69,8 @@ jobs:
           cache-dependency-path: kap-medusa/apps/backend/package-lock.json
       - name: Install exact audited Medusa dependencies from lockfile
         run: npm ci --no-audit --no-fund
+      - name: Check secure Supabase session-pooler URL builder
+        run: node --test kap-db-url.test.mjs
       - name: Create separate Postgres database within same project
         run: |
           set -euo pipefail
