@@ -355,7 +355,7 @@ async function handler(req,res){
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
   }
   if(p==='/api/sourcing'&&method==='GET'){
-    requireRole(user,['owner','manager','fulfillment']);
+    requireRole(user,['owner','manager']);
     const items=(await query(`SELECT s.*, p.title, p.status AS product_status, p.stock_quantity
       FROM kap_sourcing s JOIN kap_products p ON p.sku=s.sku ORDER BY s.updated_at DESC, s.sku`)).rows;
     return json(res,200,{items,automated_orders:false,checkout_enabled:false});
