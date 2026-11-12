@@ -1,0 +1,115 @@
+name: KAP Medusa - isolated DB and real startup QA
+
+on:
+  push:
+    branches: [feature/kap-operations-20261110, feature/kap-supabase-db-isolation]
+    paths:
+      - 'kap-medusa/apps/backend/**'
+      - '.github/workflows/kap-medusa-smoke.yml'
+  pull_request:
+    paths:
+      - 'kap-medusa/apps/backend/**'
+      - '.github/workflows/kap-medusa-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  medusa-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: kap-medusa/apps/backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: kapci
+          POSTGRES_PASSWORD: kapci-not-a-live-password
+          POSTGRES_DB: kap_medusa_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U kapci -d kap_medusa_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: development
+      DATABASE_URL: postgres://kapmedusa_ci:ci-test-password-only@127.0.0.1:5432/kap_commerce_ci
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: CI_ONLY_NONPRODUCTION_TEST_JWT_SECRET_0123456789
+      COOKIE_SECRET: CI_ONLY_NONPRODUCTION_TEST_COOKIE_SECRET_9876543210
+      STORE_CORS: http://127.0.0.1:3000
+      ADMIN_CORS: http://127.0.0.1:9000
+      AUTH_CORS: http://127.0.0.1:3000,http://127.0.0.1:9000
+      WORKER_MODE: shared
+      KAP_MEDUSA_DISABLE_ADMIN: 'true'
+      CI_MEDUSA_ADMIN_EMAIL: ci-admin@kap.invalid
+      CI_MEDUSA_ADMIN_PASSWORD: CI_DISPOSABLE_ONLY_NotForLive_2026
+      NODE_OPTIONS: --max-old-space-size=4096
+      PORT: '9000'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: kap-medusa/apps/backend/package-lock.json
+      - name: Install exact audited Medusa dependencies from lockfile
+        run: npm ci --no-audit --no-fund
+      - name: Check secure Supabase session-pooler URL builder
+        run: node --test kap-db-url.test.mjs
+      - name: Create separate Postgres database within same project
+        run: |
+          set -euo pipefail
+          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_medusa_ci -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE TABLE public.existing_customer_data_guard (id integer primary key, note text not null);
+          INSERT INTO public.existing_customer_data_guard VALUES (1,'must survive Medusa migrations');
+          CREATE ROLE kapmedusa_ci LOGIN PASSWORD 'ci-test-password-only';
+          CREATE DATABASE kap_commerce_ci OWNER kapmedusa_ci TEMPLATE template0;
+          SQL
+      - name: Migrate only the new Medusa database
+        run: npm run migrate
+      - name: Verify original project database is unchanged
+        run: |
+          set -euo pipefail
+          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_medusa_ci -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN (SELECT count(*) FROM pg_tables WHERE schemaname='public') = 1 AND (SELECT note FROM public.existing_customer_data_guard WHERE id=1)='must survive Medusa migrations' THEN 'SAFE' ELSE 'UNSAFE' END" | grep -Fx SAFE
+          PGPASSWORD=kapci-not-a-live-password psql -h 127.0.0.1 -U kapci -d kap_commerce_ci -v ON_ERROR_STOP=1 -Atc "SELECT CASE WHEN (SELECT count(*) FROM pg_tables WHERE schemaname='public') > 30 THEN 'MEDUSA_OK' ELSE 'MISSING_TABLES' END" | grep -Fx MEDUSA_OK
+      - name: Create disposable Medusa admin test identity
+        run: npx medusa user --email "$CI_MEDUSA_ADMIN_EMAIL" --password "$CI_MEDUSA_ADMIN_PASSWORD"
+      - name: Build actual Medusa server
+        run: npm run build
+      - name: Boot real Medusa and validate real API responses
+        run: |
+          set -euo pipefail
+          npm run start >/tmp/kap-medusa-smoke.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; tail -n 100 /tmp/kap-medusa-smoke.log || true' EXIT
+          found=0
+          for i in $(seq 1 90); do
+            if curl --silent --fail http://127.0.0.1:9000/kap-readiness >/tmp/kap-readiness.json; then
+              found=1; break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo 'Medusa exited before startup'; exit 1
+            fi
+            sleep 3
+          done
+          test "$found" -eq 1
+          node -e 'const r=require("/tmp/kap-readiness.json"); if(r.service!=="kap-commerce" || r.checkout_enabled!==false || r.payments_enabled!==false)process.exit(1)'
+          code=$(curl --silent --output /tmp/kap-admin-response.txt --write-out '%{http_code}' http://127.0.0.1:9000/admin/orders)
+          test "$code" = 401
+          echo 'Medusa startup, KAP readiness route, and locked-down admin API confirmed'
+          node scripts/studio-connector-smoke.mjs

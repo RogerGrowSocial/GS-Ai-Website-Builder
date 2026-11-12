@@ -1,0 +1,22 @@
+/* Staff-only simulated checkout. Public store checkout remains blocked. */
+.sandbox-steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:24px 0}
+.sandbox-step{border:1px solid #e0e9df;background:#fff;border-radius:14px;padding:17px;display:flex;align-items:center;gap:12px;color:#91a196}
+.sandbox-step strong{display:grid;place-items:center;flex-shrink:0;width:33px;height:33px;border-radius:50%;background:#edf2ed;color:#6f8773;font-size:12px}
+.sandbox-step span{font-size:12px;font-weight:750}
+.sandbox-step.active{border-color:#a9c5ac;color:#234633;background:#f2f8f0}
+.sandbox-step.active strong{background:#254831;color:#fff}
+.sandbox-email{font-family:inherit;white-space:pre-wrap;line-height:1.65;font-size:12px;background:#f3f7f1;border-radius:9px;padding:15px;overflow-wrap:anywhere}
+.sandbox-steps+.panel,.sandbox-steps~.panel{margin-bottom:18px}
+.sandbox-panel-body{padding:22px 24px 24px;min-width:0}
+.sandbox-panel-body>p:first-child{margin-top:0}
+.sandbox-panel-body>p{line-height:1.65;font-size:13px;color:#425248}
+.sandbox-panel-body>.detail-grid{margin:0 0 18px}
+.sandbox-panel-body>.tablewrap{border:1px solid #e5ebe3;border-radius:10px;margin-bottom:18px}
+.sandbox-panel-body>.split-actions{margin-top:14px}
+.sandbox-panel-body>.list-card{padding:18px;background:#f9fbf8}
+.sandbox-panel-body>.form-grid{margin:18px 0 0}
+.sandbox-panel-body>:last-child{margin-bottom:0}
+.profile-form{padding:24px;display:grid;gap:16px;justify-items:start}
+.profile-form label{display:grid;gap:8px;width:100%;font-size:12px;font-weight:700;color:#425248}
+.profile-form .field{width:100%;max-width:380px}
+@media(max-width:750px){.sandbox-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.sandbox-step{padding:12px;gap:8px}.sandbox-step strong{width:27px;height:27px}.sandbox-panel-body{padding:18px 16px 20px}}
