@@ -3,7 +3,7 @@ import { greetingForDate, weekdayForDate, firstName } from './greeting.js';
 const $ = selector => document.querySelector(selector);
 const state={user:null,csrf:null,page:'dashboard',params:{},config:{},products:[],team:[],testOrderId:null,testCheckout:false,skipTestResume:false};
 const commerceOffsets={orders:0,products:0};
-const pageNames={dashboard:'OVERZICHT',orders:'BESTELLINGEN',customers:'KLANTEN',tickets:'KLANTENSERVICE',returns:'RETOUREN',sandbox:'TESTBESTELLING',launch:'LIVEGANG',products:'PRODUCTSTATUS',commerce:'COMMERCE-ENGINE',templates:'ANTWOORDSJABLONEN',team:'TEAM',activity:'ACTIVITEITENLOG',settings:'INSTELLINGEN'};
+const pageNames={dashboard:'OVERZICHT',orders:'BESTELLINGEN',customers:'KLANTEN',tickets:'KLANTENSERVICE',returns:'RETOUREN',sandbox:'TESTBESTELLING',launch:'LIVEGANG',products:'PRODUCTSTATUS',sourcing:'INKOOP & LEVERANCIERS',commerce:'COMMERCE-ENGINE',templates:'ANTWOORDSJABLONEN',team:'TEAM',activity:'ACTIVITEITENLOG',settings:'INSTELLINGEN'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const euro=n=>new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format((Number(n)||0)/100);
 const date=s=>s?new Intl.DateTimeFormat('nl-NL',{day:'2-digit',month:'short',year:'numeric'}).format(new Date(s)):'—';
@@ -56,7 +56,7 @@ async function navigate(page,params={}){
   setContent('<div class="empty">Gegevens laden…</div>');
   try{await views[page]()}catch(e){setContent(head('KAP. STUDIO','Er ging iets mis',e.message));toast(e.message,true)}
 }
-const views={dashboard,orders,customers,tickets,returns,sandbox,launch,products,commerce,templates,team,activity,settings};
+const views={dashboard,orders,customers,tickets,returns,sandbox,launch,products,sourcing,commerce,templates,team,activity,settings};
 
 async function commerce(){
   const status=await api('/commerce/status');
@@ -185,6 +185,54 @@ async function launch(){
   $('#margin-form').addEventListener('submit',e=>{e.preventDefault();const value=id=>Number($('#margin-'+id).value);const result=calculateUnitMargin({priceInclVat:value('product')/100,purchaseExVat:value('purchase'),shippingExVat:value('shipping'),packagingExVat:value('packaging'),paymentExVat:value('payment'),riskReserveExVat:value('risk')});if(!result){$('#margin-result').textContent='Controleer de ingevulde bedragen.';return}const color=result.contribution>=0?'#327944':'#a84949';$('#margin-result').innerHTML=`<div class="margin-kpis"><div><small>Omzet excl. 21% btw</small><strong>${euro(result.salesExVat*100)}</strong></div><div><small>Directe kosten</small><strong>${euro(result.cost*100)}</strong></div><div><small>Bijdrage per order</small><strong style="color:${color}">${euro(result.contribution*100)}</strong></div><div><small>Brutomarge op omzet excl. btw</small><strong style="color:${color}">${result.marginPercent.toFixed(1)}%</strong></div></div><p>Benodigde minimumverkoopprijs om directe kosten te dekken: <strong>${euro(result.breakEvenPriceInclVat*100)}</strong> inclusief btw. Vaste kosten, marketing en belasting op winst zijn niet meegerekend.</p>`});
   bindLinks();
 }
+
+async function sourcing(){
+  const r=await api('/sourcing');
+  const names={research:'Onderzoek',requested:'Aanvraag verstuurd',quoted:'Offerte ontvangen',compliance_review:'Documentcontrole',approved:'Intern gecontroleerd',rejected:'Afgewezen'};
+  const checklist=['eu_documents_verified','logo_free_verified','single_unit_verified','nl_delivery_verified','api_mapping_verified'];
+  const labels={eu_documents_verified:'EU-documenten',logo_free_verified:'Logo-vrij',single_unit_verified:'Dropship per stuk',nl_delivery_verified:'NL-levering',api_mapping_verified:'API-koppeling'};
+  const moneyOrBlank=n=>n===null||n===undefined?'Nog niet bekend':euro(n);
+  const rows=r.items.map(p=>{
+    const done=checklist.filter(k=>p[k]).length;
+    const total=p.unit_cost_cents===null||p.shipping_cents===null?null:Number(p.unit_cost_cents)+Number(p.shipping_cents);
+    return '<tr><td><strong>'+esc(p.title)+'</strong><br><small class="muted">'+esc(p.sku)+'</small></td>'
+      +'<td>'+esc(p.supplier)+'</td><td>'+esc(names[p.workflow_status]||p.workflow_status)+'</td>'
+      +'<td>'+moneyOrBlank(total)+'</td><td>'+done+' / 5</td>'
+      +'<td>'+badge(p.product_status)+'</td><td><button class="secondary" data-sourcing="'+esc(p.sku)+'">Beheer</button></td></tr>';
+  }).join('');
+  const headline='<div class="info-callout"><strong>Niet verkoopklaar.</strong> Een HyperSKU-account is geen leverancierstoestemming: er is nog geen goedgekeurd model, offerte, EU-dossier of werkende API-koppeling. Producten blijven concept met voorraad 0. Er kunnen geen betaalde orders worden geplaatst.</div>';
+  setContent(head('KAP. / INKOOP','Inkoop & leveranciers','Offertes, modelnummers en productveiligheid op één plek. Geen oncontroleerbare verkoopclaims.')+
+    headline+panel('Sourcingdossiers',table(['Product','Leverancier','Fase','Inkoop + verzending (excl. btw)','Verificatie','Webshop','Actie'],rows)));
+  document.querySelectorAll('[data-sourcing]').forEach(button=>button.addEventListener('click',()=>{
+    const p=r.items.find(item=>item.sku===button.dataset.sourcing);
+    if(!p)return;
+    const options=Object.entries(names).map(([v,label])=>'<option value="'+v+'" '+(v===p.workflow_status?'selected':'')+'>'+label+'</option>').join('');
+    const checklistHtml=checklist.map(k=>'<label style="display:flex;gap:9px;align-items:center"><input type="checkbox" name="'+k+'" '+(p[k]?'checked':'')+'>'+labels[k]+' aantoonbaar bevestigd</label>').join('');
+    const field=(name,label,value,attrs='')=>'<label>'+label+'<input class="field" name="'+name+'" value="'+esc(value??'')+'" '+attrs+'></label>';
+    const form='<form class="stack" id="sourcing-form">'+field('supplier','Leverancier',p.supplier,'required maxlength="100"')
+      +'<label>Fase<select class="field" name="workflow_status">'+options+'</select></label>'
+      +field('request_id','Offerte-/aanvraagnummer',p.request_id,'maxlength="140"')
+      +field('provider_sku','Exact leveranciers-SKU',p.provider_sku,'maxlength="140"')
+      +field('unit_cost_eur','Inkoop excl. btw (€)',p.unit_cost_cents===null?'':(Number(p.unit_cost_cents)/100).toFixed(2),'type="number" min="0" step="0.01"')
+      +field('shipping_eur','Verzending naar NL excl. btw (€)',p.shipping_cents===null?'':(Number(p.shipping_cents)/100).toFixed(2),'type="number" min="0" step="0.01"')
+      +'<div class="info-callout">Vink uitsluitend af als het exacte model en de bijbehorende bewijsstukken zijn gecontroleerd.</div>'
+      +checklistHtml+'<label>Notities<textarea class="field" rows="5" name="notes" maxlength="2000">'+esc(p.notes)+'</textarea></label>'
+      +'<button class="primary" type="submit">Inkoopdossier opslaan</button></form>';
+    openModal('<span class="eyebrow">SOURCING / '+esc(p.sku)+'</span><h2>'+esc(p.title)+'</h2>'+form);
+    $('#sourcing-form').addEventListener('submit',event=>{
+      event.preventDefault();
+      tryAction(async()=>{
+        const f=new FormData(event.target);
+        const cents=key=>String(f.get(key)||'').trim()===''?null:Math.round(Number(f.get(key))*100);
+        const data={sku:p.sku,supplier:String(f.get('supplier')||''),workflow_status:String(f.get('workflow_status')||'research'),request_id:String(f.get('request_id')||''),provider_sku:String(f.get('provider_sku')||''),unit_cost_cents:cents('unit_cost_eur'),shipping_cents:cents('shipping_eur'),notes:String(f.get('notes')||'')};
+        checklist.forEach(k=>{data[k]=f.has(k)});
+        await api('/sourcing',{method:'PATCH',data});
+        closeModal();toast('Inkoopdossier opgeslagen');await navigate('sourcing');
+      });
+    });
+  }));
+}
+
 async function products(){const r=await api('/products');setContent(head('CATALOG / CONTROLE','Productstatus','Vereiste controles vóór echte verkoop. Producten starten als concept.')+panel('Productoverzicht',table(['Product','SKU','Indicatieve prijs','Voorraad','Status','Beheer'],r.items.map(p=>`<tr><td><strong>${esc(p.title)}</strong></td><td>${esc(p.sku)}</td><td>${euro(p.price_cents)}</td><td>${p.stock_quantity}</td><td>${badge(p.status)}</td><td><button class="secondary" data-product="${esc(p.sku)}">Wijzigen</button></td></tr>`).join('')))+`<div class="info-callout"><strong>Verkoopbeveiliging:</strong> een voorbeeldproduct kan niet worden vrijgegeven zonder expliciete productgoedkeuring. In deze tijdelijke demo is "Verkoopklaar" volledig geblokkeerd. <a href="#" data-go="launch">Bekijk livegang-checklist ↗</a></div>`);bindLinks();document.querySelectorAll('[data-product]').forEach(b=>b.addEventListener('click',()=>{const p=r.items.find(x=>x.sku===b.dataset.product);openModal(`<span class="eyebrow">PRODUCTCONTROLE</span><h2>${esc(p.title)}</h2><form id="product-form" class="stack"><label>Status<select class="field" name="status">${statusOptions(['draft','ready','archived'],p.status)}</select></label><label>Voorraad<input class="field" type="number" min="0" name="stock_quantity" value="${p.stock_quantity}"></label><button class="primary">Opslaan</button></form><div class="info-callout">Productvrijgave vereist eerst leverancierscontrole en documentatie. De demo kan geen producten vrijgeven.</div>`);$('#product-form').addEventListener('submit',e=>{e.preventDefault();tryAction(async()=>{const f=new FormData(e.target);await api('/products',{method:'PATCH',data:{sku:p.sku,status:f.get('status'),stock_quantity:Number(f.get('stock_quantity'))}});closeModal();toast('Productstatus bijgewerkt');navigate('products')})})}));}
 async function templates(){const r=await api('/templates');setContent(head('CUSTOMER CARE','Antwoordsjablonen','Consistente antwoorden voor veelvoorkomende klantvragen.','<button class="primary" id="new-template">+ Sjabloon</button>')+`<div class="list-block">${r.items.length?r.items.map(t=>`<article class="list-card"><span class="eyebrow">${esc(t.category)}</span><h3>${esc(t.title)}</h3><strong>${esc(t.subject)}</strong><p>${esc(t.body)}</p><button class="secondary" data-copy="${t.id}">Kopieer antwoord</button></article>`).join(''):empty('Nog geen sjablonen','Maak antwoorden voor levertijd, montage, garantie en retouren.')}</div>`);document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',()=>{const t=r.items.find(x=>x.id===b.dataset.copy);navigator.clipboard?.writeText(t.body).then(()=>toast('Gekopieerd naar klembord')).catch(()=>toast('Kopiëren niet mogelijk',true))}));$('#new-template').addEventListener('click',()=>{openModal(`<span class="eyebrow">CUSTOMER CARE</span><h2>Nieuw sjabloon</h2><form id="template-form" class="stack"><label>Naam<input class="field" name="title" required></label><label>Categorie<input class="field" name="category" placeholder="Levering"></label><label>Onderwerp<input class="field" name="subject" required></label><label>Antwoord<textarea class="field" name="body" required rows="7"></textarea></label><button class="primary">Sjabloon opslaan</button></form>`);$('#template-form').addEventListener('submit',e=>{e.preventDefault();tryAction(async()=>{await api('/templates',{method:'POST',data:Object.fromEntries(new FormData(e.target))});closeModal();toast('Sjabloon opgeslagen');navigate('templates')})})})}
 async function team(){const r=await api('/team');setContent(head('ACCESS / TEAM','Team & rollen','Onafhankelijke KAP.-accounts, los van andere bedrijven.',state.user.role==='owner'?'<button class="primary" id="new-teammate">+ Medewerker</button>':'')+panel('Gebruikers',table(['Naam','E-mail','Rol','Actief'],r.items.map(u=>`<tr><td><strong>${esc(u.name)}</strong></td><td>${esc(u.email)}</td><td>${badge(u.role)}</td><td>${u.active?'Ja':'Nee'}</td></tr>`).join(''))));$('#new-teammate')?.addEventListener('click',()=>{openModal(`<span class="eyebrow">TOEGANG</span><h2>Medewerker toevoegen</h2><form id="team-form" class="stack"><label>Naam<input name="name" class="field" required></label><label>E-mailadres<input type="email" name="email" class="field" required></label><label>Rol<select name="role" class="field"><option value="manager">Manager</option><option value="support">Klantenservice</option><option value="fulfillment">Orderverwerking</option></select></label><label>Tijdelijk wachtwoord (min. 14 tekens)<input name="password" type="password" class="field" minlength="14" required></label><button class="primary">Account aanmaken</button></form>`);$('#team-form').addEventListener('submit',e=>{e.preventDefault();tryAction(async()=>{await api('/team',{method:'POST',data:Object.fromEntries(new FormData(e.target))});closeModal();toast('Medewerker toegevoegd — deel tijdelijke toegang veilig');navigate('team')})})})}
