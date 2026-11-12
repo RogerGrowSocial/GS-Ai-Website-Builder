@@ -27,7 +27,8 @@ const NOTIFICATION_KINDS = ['order_confirmation','shipping_confirmation'];
 const PRODUCT_CATALOG = [
   ['essential-zwart-60','Essential Zwart 60',47500],
   ['essential-rvs-60','Essential RVS 60',48500],
-  ['studio-zwart-60','Studio Zwart 60',49500]
+  ['studio-zwart-60','Studio Zwart 60',49500],
+  ['kap-schuin-zwart-60','KAP. Schuin 60 — Zwart (concept)',0]
 ];
 
 const uid = () => crypto.randomUUID();
@@ -82,6 +83,7 @@ async function migrate(){
   if(!pool)return;
   await query(fs.readFileSync(path.join(ROOT,'schema.sql'),'utf8'));
   for(const [sku,title,price] of PRODUCT_CATALOG)await query('INSERT INTO kap_products(sku,title,price_cents) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[sku,title,price]);
+  await query("INSERT INTO kap_sourcing(sku,supplier,notes) VALUES($1,'HyperSKU','Zwarte schuine glazen 60cm afzuigkap zonder logo. Exact model, prijs, EU-documentatie en levering per stuk naar Nederland niet bevestigd; geen verkoop toegestaan.') ON CONFLICT DO NOTHING",['kap-schuin-zwart-60']);
   const count=await one('SELECT count(*)::int AS count FROM kap_users');
   if(count.count===0){
     const email=process.env.KAP_ADMIN_EMAIL;const password=process.env.KAP_ADMIN_PASSWORD;
@@ -351,6 +353,35 @@ async function handler(req,res){
       query(`SELECT o.id,o.number,o.status,o.payment_status,o.total_cents,o.created_at,c.first_name,c.last_name,c.email FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.source<>'sandbox' ORDER BY o.created_at DESC LIMIT 6`),
       query(`SELECT t.id,t.number,t.subject,t.status,t.priority,t.updated_at,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox' ORDER BY t.updated_at DESC LIMIT 6`)
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
+  }
+  if(p==='/api/sourcing'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    const items=(await query(`SELECT s.*, p.title, p.status AS product_status, p.stock_quantity
+      FROM kap_sourcing s JOIN kap_products p ON p.sku=s.sku ORDER BY s.updated_at DESC, s.sku`)).rows;
+    return json(res,200,{items,automated_orders:false,checkout_enabled:false});
+  }
+  if(p==='/api/sourcing'&&method==='PATCH'){
+    requireRole(user,['owner','manager']);
+    const {data}=await body(req);
+    const sku=clean(data.sku,120);
+    const current=await one('SELECT * FROM kap_sourcing WHERE sku=$1',[sku]);
+    if(!current)throw bad(404,'Inkoopdossier niet gevonden');
+    const statuses=['research','requested','quoted','compliance_review','approved','rejected'];
+    if(!statuses.includes(data.workflow_status))throw bad(400,'Ongeldige leveranciersstatus');
+    const cents=value=>value===null||value===''||value===undefined?null:(Number.isInteger(value)&&value>=0&&value<=10000000?value:NaN);
+    const unit=cents(data.unit_cost_cents),ship=cents(data.shipping_cents);
+    if(Number.isNaN(unit)||Number.isNaN(ship))throw bad(400,'Ongeldige prijs of verzendkosten');
+    const verificationKeys=['eu_documents_verified','logo_free_verified','single_unit_verified','nl_delivery_verified','api_mapping_verified'];
+    if(verificationKeys.some(key=>typeof data[key]!=='boolean'))throw bad(400,'Ongeldige verificatievelden');
+    const supplier=clean(data.supplier,100),requestId=clean(data.request_id,140),providerSku=clean(data.provider_sku,140),notes=clean(data.notes,2000);
+    if(!supplier)throw bad(400,'Leverancier is verplicht');
+    if(data.workflow_status==='approved'&&(!requestId||!providerSku||unit===null||ship===null||unit+ship>10000||verificationKeys.some(k=>data[k]!==true)))throw bad(409,'Niet goedkeuren: offerte, SKU, all-in prijs maximaal €100 en alle controles moeten aantoonbaar zijn afgerond');
+    const item=await one(`UPDATE kap_sourcing SET supplier=$2,workflow_status=$3,request_id=$4,provider_sku=$5,
+      unit_cost_cents=$6,shipping_cents=$7,eu_documents_verified=$8,logo_free_verified=$9,single_unit_verified=$10,
+      nl_delivery_verified=$11,api_mapping_verified=$12,notes=$13,updated_at=now() WHERE sku=$1 RETURNING *`,
+      [sku,supplier,data.workflow_status,requestId,providerSku,unit,ship,...verificationKeys.map(k=>data[k]),notes]);
+    await audit(user.id,'sourcing',null,'review_updated',{sku,workflow_status:item.workflow_status});
+    return json(res,200,{item,note:'Inkoopcontrole is administratie; dit activeert geen betalingen of dropshipping.'});
   }
   if(p==='/api/products'&&method==='GET')return json(res,200,{items:(await query('SELECT * FROM kap_products ORDER BY title')).rows});
   if(p==='/api/launch-readiness'&&method==='GET'){

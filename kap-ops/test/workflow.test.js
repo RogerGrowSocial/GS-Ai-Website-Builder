@@ -77,7 +77,13 @@ test('end-to-end order, customer care, return and authorization workflows',async
       delete process.env.KAP_MEDUSA_URL;
       delete process.env.KAP_MEDUSA_SECRET_API_KEY;
     }
-    r=await request('/api/products');assert.equal(r.data.items.length,3);
+    r=await request('/api/products');assert.equal(r.data.items.length,4);assert.ok(r.data.items.some(p=>p.sku==='kap-schuin-zwart-60'&&p.status==='draft'&&p.stock_quantity===0&&p.price_cents===0));
+    r=await request('/api/sourcing');assert.equal(r.status,200);assert.equal(r.data.items.length,1);
+    assert.equal(r.data.items[0].sku,'kap-schuin-zwart-60');assert.equal(r.data.items[0].workflow_status,'research');
+    assert.equal(r.data.items[0].unit_cost_cents,null);assert.equal(r.data.checkout_enabled,false);
+    const sourcing={sku:'kap-schuin-zwart-60',supplier:'HyperSKU',workflow_status:'approved',request_id:'',provider_sku:'',unit_cost_cents:null,shipping_cents:null,eu_documents_verified:false,logo_free_verified:false,single_unit_verified:false,nl_delivery_verified:false,api_mapping_verified:false,notes:'Not yet sourced'};
+    r=await request('/api/sourcing','PATCH',sourcing);assert.equal(r.status,409);
+    r=await request('/api/sourcing','PATCH',{...sourcing,workflow_status:'research'});assert.equal(r.status,200);
     r=await request('/api/orders','POST',{customer:{email:'shopper@example.com',first_name:'Test',last_name:'Klant'},items:[{sku:'essential-zwart-60',quantity:2}]});
     assert.equal(r.status,201);const orderId=r.data.item.id;assert.equal(r.data.item.total_cents,95000);assert.equal(r.data.item.status,'draft');
     r=await request('/api/orders/'+orderId,'PATCH',{status:'shipped',fulfillment_status:'fulfilled'});assert.equal(r.status,409);
