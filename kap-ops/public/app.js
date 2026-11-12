@@ -23,7 +23,7 @@ async function api(url,{method='GET',data}={}){
 }
 async function tryAction(run){try{await run()}catch(error){toast(error.message,true)}}
 function showLogin(){$('#login').classList.remove('hidden');$('#shell').classList.add('hidden');state.user=null;state.csrf=null}
-function showApp(){$('#login').classList.add('hidden');$('#shell').classList.remove('hidden');$('#user-name').textContent=state.user.name;$('#avatar').textContent=state.user.name[0]?.toUpperCase()||'K';if(state.demo){$('.sidebar-bottom strong').textContent='Tijdelijke demo';$('.sidebar-bottom small').textContent='Gegevens verdwijnen bij herstart'}}
+function showApp(){$('#login').classList.add('hidden');$('#shell').classList.remove('hidden');const sourcingNav=document.querySelector('[data-page="sourcing"]');if(sourcingNav)sourcingNav.style.display=['owner','manager'].includes(state.user.role)?'':'none';$('#user-name').textContent=state.user.name;$('#avatar').textContent=state.user.name[0]?.toUpperCase()||'K';if(state.demo){$('.sidebar-bottom strong').textContent='Tijdelijke demo';$('.sidebar-bottom small').textContent='Gegevens verdwijnen bij herstart'}}
 function activationFromLink(){
   const params=new URLSearchParams(location.hash.replace(/^#/,''));
   const token=params.get('activate'),email=params.get('email');
