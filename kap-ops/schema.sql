@@ -102,3 +102,22 @@ ALTER TABLE kap_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kap_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kap_webhook_receipts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kap_order_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Private supplier and compliance workflow. Does not enable checkout or purchasing.
+CREATE TABLE IF NOT EXISTS kap_sourcing (
+ sku text PRIMARY KEY REFERENCES kap_products(sku) ON DELETE CASCADE,
+ supplier text NOT NULL DEFAULT 'HyperSKU',
+ workflow_status text NOT NULL DEFAULT 'research' CHECK(workflow_status IN ('research','requested','quoted','compliance_review','approved','rejected')),
+ request_id text NOT NULL DEFAULT '',
+ provider_sku text NOT NULL DEFAULT '',
+ unit_cost_cents integer CHECK(unit_cost_cents IS NULL OR unit_cost_cents >= 0),
+ shipping_cents integer CHECK(shipping_cents IS NULL OR shipping_cents >= 0),
+ eu_documents_verified boolean NOT NULL DEFAULT false,
+ logo_free_verified boolean NOT NULL DEFAULT false,
+ single_unit_verified boolean NOT NULL DEFAULT false,
+ nl_delivery_verified boolean NOT NULL DEFAULT false,
+ api_mapping_verified boolean NOT NULL DEFAULT false,
+ notes text NOT NULL DEFAULT '',
+ updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE kap_sourcing ENABLE ROW LEVEL SECURITY;
