@@ -118,14 +118,14 @@ CREATE TABLE IF NOT EXISTS kap_sourcing (
  nl_delivery_verified boolean NOT NULL DEFAULT false,
  api_mapping_verified boolean NOT NULL DEFAULT false,
  notes text NOT NULL DEFAULT '',
+ cj_product_id text,
+ cj_variant_id text,
+ cj_listing_url text,
+ cj_last_checked_at timestamptz,
  updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE kap_sourcing ENABLE ROW LEVEL SECURITY;
 
--- CJ catalog mapping is advisory until the exact appliance and EU evidence are verified.
--- These columns do not create a purchasable variant, stock reservation or public order.
-ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_product_id text;
-ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_variant_id text;
-ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_listing_url text;
-ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_last_checked_at timestamptz;
+-- Existing PostgreSQL deployments receive non-destructive column migrations at startup.
+-- New PostgreSQL and SQLite demo databases already have these columns in CREATE TABLE.
 CREATE INDEX IF NOT EXISTS kap_sourcing_cj_pid_idx ON kap_sourcing(cj_product_id);
