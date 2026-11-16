@@ -200,9 +200,9 @@ async function sourcing(){
       +'<td>'+moneyOrBlank(total)+'</td><td>'+done+' / 5</td>'
       +'<td>'+badge(p.product_status)+'</td><td><button class="secondary" data-sourcing="'+esc(p.sku)+'">Beheer</button></td></tr>';
   }).join('');
-  const headline='<div class="info-callout"><strong>Niet verkoopklaar.</strong> Een HyperSKU-account is geen leverancierstoestemming: er is nog geen goedgekeurd model, offerte, EU-dossier of werkende API-koppeling. Producten blijven concept met voorraad 0. Er kunnen geen betaalde orders worden geplaatst.</div>';
+  const headline='<div class="info-callout"><strong>Veilige pre-launch.</strong> CJ-catalogusdata en CE-vermeldingen zijn geen bewijs van wettelijke productconformiteit. Zonder exacte logovrije leverancier, NL-vracht, EU-dossier en gecontroleerde variant blijft deze afzuigkap op concept met voorraad 0. Publieke checkout staat uit.</div>';
   setContent(head('KAP. / INKOOP','Inkoop & leveranciers','Offertes, modelnummers en productveiligheid op één plek. Geen oncontroleerbare verkoopclaims.')+
-    headline+panel('Sourcingdossiers',table(['Product','Leverancier','Fase','Inkoop + verzending (excl. btw)','Verificatie','Webshop','Actie'],rows)));
+    headline+panel('Sourcingdossiers',table(['Product','Leverancier','Fase','Inkoop + verzending (excl. btw)','Verificatie','Webshop','Actie'],rows))+'<div id="cj-integration"></div>');
   document.querySelectorAll('[data-sourcing]').forEach(button=>button.addEventListener('click',()=>{
     const p=r.items.find(item=>item.sku===button.dataset.sourcing);
     if(!p)return;
@@ -231,6 +231,67 @@ async function sourcing(){
       });
     });
   }));
+  await cjDashboard();
+}
+
+
+async function cjDashboard(){
+  const host=$('#cj-integration');
+  if(!host)return;
+  let status;
+  try{status=await api('/cj/status')}catch(e){host.innerHTML=panel('CJ-koppeling',empty('CJ-status niet beschikbaar',e.message));return}
+  const stateLine=status.configured
+    ? '<div class="info-callout"><strong>CJ API-sleutel aanwezig.</strong> Zoek en bekijk echte CJ-catalogusresultaten. Een CE-indicatie uit CJ bewijst geen EU-conformiteit; prijs en NL-vracht moeten apart worden gecontroleerd. Geen automatische leveranciersorders.</div>'
+    : '<div class="info-callout"><strong>Nog niet gekoppeld.</strong> Zet de CJ API-sleutel uitsluitend als <code>CJ_API_KEY</code> op de Render-server. Maak hem in CJ aan via Apps → Install App → API → Personal Center → API → Add API. Deel de sleutel niet via de webshop of broncode.</div>';
+  const searchForm='<form id="cj-search" class="stack"><label>Zoek in actuele CJ-catalogus<input class="field" id="cj-query" type="search" placeholder="60cm angled cooker hood" minlength="3" maxlength="110" required></label><button class="primary" type="submit" '+(!status.configured?'disabled':'')+'>Zoek live in CJ</button></form><div id="cj-search-results"></div>';
+  const sourceForm='<form id="cj-source" class="stack">'
+      +'<label>Productnaam<input class="field" name="productName" value="Unbranded 60cm black angled glass wall mounted cooker hood" maxlength="180" required></label>'
+      +'<label>Publieke HTTPS-foto van referentiemodel<input class="field" type="url" name="productImage" placeholder="https://.../product.jpg" required></label>'
+      +'<label>Bron-URL (optioneel)<input class="field" type="url" name="productUrl" placeholder="https://..."></label>'
+      +'<label>Eisen (maximaal 180 tekens)<textarea class="field" name="remark" rows="3" maxlength="180">NO LOGO or branding. 60cm black angled glass hood, 220-240V, 350m3/h+, ducted/recirculation, EU DoC + exact test reports + EPREL, dropship 1pc NL, target max EUR75 landed.</textarea></label>'
+      +'<button class="primary" type="submit" '+(!status.configured?'disabled':'')+'>Vraag specifiek model bij CJ aan</button></form>'
+      +'<div id="cj-source-result" class="muted"></div>';
+  host.innerHTML=panel('CJdropshipping · API',stateLine+searchForm)+panel('Geen passende catalogusmatch? Direct sourcen',sourceForm);
+  $('#cj-search')?.addEventListener('submit',event=>{
+    event.preventDefault();
+    tryAction(async()=>{
+      const q=$('#cj-query').value.trim();
+      const results=$('#cj-search-results');results.innerHTML='<div class="muted">CJ-resultaten ophalen...</div>';
+      const response=await api('/cj/search?q='+encodeURIComponent(q));
+      const items=response.items||[];
+      results.innerHTML=items.length
+        ? '<p class="muted">'+items.length+' gevonden op deze pagina, '+response.total+' in CJ. Prijzen in USD; verzending NIET inbegrepen.</p>'
+          +table(['CJ-product','Prijs USD','Voorraad','Claim','Actie'],items.map(p=>
+            '<tr><td><strong>'+esc(p.title)+'</strong><br><small class="muted">'+esc(p.sku)+' · '+esc(p.pid)+'</small></td>'
+            +'<td>'+esc(p.price_usd??'Onbekend')+'</td><td>'+esc(p.verified_warehouse_stock)+'</td>'
+            +'<td>'+(p.ce_claimed?'CJ vermeldt CE; bewijs vereist':'Niet bevestigd')+'</td>'
+            +'<td><button class="secondary" data-cj-inspect="'+esc(p.pid)+'">Bekijk</button></td></tr>').join(''))
+        : '<div class="info-callout">Geen match in deze CJ-zoekopdracht. Dat is géén bevestiging dat het product niet kan worden gesourced.</div>';
+      results.querySelectorAll('[data-cj-inspect]').forEach(btn=>btn.addEventListener('click',()=>tryAction(async()=>{
+        const pid=btn.dataset.cjInspect;
+        const [details,variants]=await Promise.all([api('/cj/product?pid='+encodeURIComponent(pid)),api('/cj/variants?pid='+encodeURIComponent(pid))]);
+        const body='<p class="muted">CJ-catalogusinformatie is niet onafhankelijk gecertificeerd. Alleen opslaan als ONGEKEURDE kandidaat.</p>'
+          +'<details><summary>Catalogusdata en varianten bekijken</summary><pre style="white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto">'+esc(JSON.stringify({product:details.item,variants:variants.items},null,2).slice(0,10000))+'</pre></details>'
+          +'<form id="cj-attach" class="stack"><label>Variant-ID (optioneel; te controleren in varianten)<input class="field" name="vid" placeholder="CJ variant ID" maxlength="120"></label>'
+          +'<button class="primary" type="submit">Bewaar deze productkandidaat in KAP Studio</button></form>';
+        openModal('<span class="eyebrow">CJ / LEVERANCIERSKANDIDAAT</span><h2>'+esc(pid)+'</h2>'+body);
+        $('#cj-attach').addEventListener('submit',ev=>{ev.preventDefault();tryAction(async()=>{
+          const data={sku:'kap-schuin-zwart-60',pid,vid:String(new FormData(ev.target).get('vid')||'')};
+          await api('/cj/attach',{method:'POST',data});
+          closeModal();toast('CJ-kandidaat opgeslagen, alle verificaties blijven open');await navigate('sourcing');
+        })});
+      })));
+    });
+  });
+  $('#cj-source')?.addEventListener('submit',event=>{
+    event.preventDefault();
+    tryAction(async()=>{
+      if(!confirm('Wil je deze échte sourcingaanvraag bij CJ indienen? Dit is geen bestelling of betaling.'))return;
+      const fields=Object.fromEntries(new FormData(event.target));
+      const result=await api('/cj/sourcing/request',{method:'POST',data:{sku:'kap-schuin-zwart-60',...fields}});
+      toast('CJ-sourcingverzoek aangemaakt: '+result.item.request_id);await navigate('sourcing');
+    });
+  });
 }
 
 async function products(){const r=await api('/products');setContent(head('CATALOG / CONTROLE','Productstatus','Vereiste controles vóór echte verkoop. Producten starten als concept.')+panel('Productoverzicht',table(['Product','SKU','Indicatieve prijs','Voorraad','Status','Beheer'],r.items.map(p=>`<tr><td><strong>${esc(p.title)}</strong></td><td>${esc(p.sku)}</td><td>${euro(p.price_cents)}</td><td>${p.stock_quantity}</td><td>${badge(p.status)}</td><td><button class="secondary" data-product="${esc(p.sku)}">Wijzigen</button></td></tr>`).join('')))+`<div class="info-callout"><strong>Verkoopbeveiliging:</strong> een voorbeeldproduct kan niet worden vrijgegeven zonder expliciete productgoedkeuring. In deze tijdelijke demo is "Verkoopklaar" volledig geblokkeerd. <a href="#" data-go="launch">Bekijk livegang-checklist ↗</a></div>`);bindLinks();document.querySelectorAll('[data-product]').forEach(b=>b.addEventListener('click',()=>{const p=r.items.find(x=>x.sku===b.dataset.product);openModal(`<span class="eyebrow">PRODUCTCONTROLE</span><h2>${esc(p.title)}</h2><form id="product-form" class="stack"><label>Status<select class="field" name="status">${statusOptions(['draft','ready','archived'],p.status)}</select></label><label>Voorraad<input class="field" type="number" min="0" name="stock_quantity" value="${p.stock_quantity}"></label><button class="primary">Opslaan</button></form><div class="info-callout">Productvrijgave vereist eerst leverancierscontrole en documentatie. De demo kan geen producten vrijgeven.</div>`);$('#product-form').addEventListener('submit',e=>{e.preventDefault();tryAction(async()=>{const f=new FormData(e.target);await api('/products',{method:'PATCH',data:{sku:p.sku,status:f.get('status'),stock_quantity:Number(f.get('stock_quantity'))}});closeModal();toast('Productstatus bijgewerkt');navigate('products')})})}));}
