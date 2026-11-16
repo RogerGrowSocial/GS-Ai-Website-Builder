@@ -83,6 +83,14 @@ function safeUser(u){return {id:u.id,email:u.email,name:u.name,role:u.role}}
 async function migrate(){
   if(!pool)return;
   await query(fs.readFileSync(path.join(ROOT,'schema.sql'),'utf8'));
+  if(!demoMode){
+    // Existing PostgreSQL KAP installations may already have kap_sourcing without CJ fields.
+    await query("ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_product_id text");
+    await query("ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_variant_id text");
+    await query("ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_listing_url text");
+    await query("ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_last_checked_at timestamptz");
+    await query("CREATE INDEX IF NOT EXISTS kap_sourcing_cj_pid_idx ON kap_sourcing(cj_product_id)");
+  }
   for(const [sku,title,price] of PRODUCT_CATALOG)await query('INSERT INTO kap_products(sku,title,price_cents) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[sku,title,price]);
   await query("INSERT INTO kap_sourcing(sku,supplier,notes) VALUES($1,'CJdropshipping','Zwarte schuine glazen 60cm-afzuigkap zonder logo. Nog geen geverifieerde CJ-SKU, prijs, EU-documenten of NL-verzending; niet bestelbaar.') ON CONFLICT DO NOTHING",['kap-schuin-zwart-60']);
   // Existing unreviewed HyperSKU concepts can move to CJ without erasing manually reviewed quotes.
