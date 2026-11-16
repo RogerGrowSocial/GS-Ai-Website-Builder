@@ -40,20 +40,28 @@ export class CJClient {
   constructor({apiKey = process.env.CJ_API_KEY || '', fetcher = fetch, clock = () => Date.now()} = {}) {
     this.apiKey = String(apiKey).trim(); this.fetcher = fetcher; this.clock = clock;
     this.token = ''; this.expiry = 0; this.pendingAuth = null;
+    this.lastCall = 0; this.callQueue = Promise.resolve();
   }
   get configured() { return this.apiKey.length > 10; }
   async http(path, {method = 'GET', data, token} = {}) {
     if (!this.configured) throw fail(503, 'CJ_API_KEY ontbreekt op de KAP-server');
     // Absolute URLs and arbitrary endpoints are forbidden (protect server credentials).
     if (!/^\/[a-zA-Z0-9/_-]+(?:\?[a-zA-Z0-9_=&%+.~-]*)?$/.test(path)) throw fail(400, 'Ongeldige CJ API-route');
-    let response;
-    try {
-      response = await this.fetcher(BASE + path, {
+    // CJ limits API calls to roughly one request per second; serialize token, product and freight calls.
+    const run = this.callQueue.then(async () => {
+      const gap = Math.max(0, this.lastCall + 1100 - this.clock());
+      if (gap) await new Promise(resolve => setTimeout(resolve, gap));
+      this.lastCall = this.clock();
+      return this.fetcher(BASE + path, {
         method, headers: {'Content-Type': 'application/json', ...(token ? {'CJ-Access-Token':token} : {})},
         ...(data === undefined ? {} : {body:JSON.stringify(data)}),
         signal: AbortSignal.timeout(15000)
       });
-    } catch { throw fail(502, 'CJ is tijdelijk niet bereikbaar'); }
+    });
+    this.callQueue = run.then(() => {}, () => {});
+    let response;
+    try { response = await run; }
+    catch { throw fail(502, 'CJ is tijdelijk niet bereikbaar'); }
     if (!response.ok) throw fail(502, 'CJ API gaf HTTP ' + response.status);
     let parsed;
     try { parsed = await response.json(); }
