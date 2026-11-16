@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { launchReadiness } from './launch-readiness.js';
 import { medusaConfigured, medusaAdminRead, medusaOrderSummary, medusaPage } from './medusa-client.js';
+import { cj } from './cj-client.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 10000);
@@ -83,7 +84,9 @@ async function migrate(){
   if(!pool)return;
   await query(fs.readFileSync(path.join(ROOT,'schema.sql'),'utf8'));
   for(const [sku,title,price] of PRODUCT_CATALOG)await query('INSERT INTO kap_products(sku,title,price_cents) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[sku,title,price]);
-  await query("INSERT INTO kap_sourcing(sku,supplier,notes) VALUES($1,'HyperSKU','Zwarte schuine glazen 60cm afzuigkap zonder logo. Exact model, prijs, EU-documentatie en levering per stuk naar Nederland niet bevestigd; geen verkoop toegestaan.') ON CONFLICT DO NOTHING",['kap-schuin-zwart-60']);
+  await query("INSERT INTO kap_sourcing(sku,supplier,notes) VALUES($1,'CJdropshipping','Zwarte schuine glazen 60cm-afzuigkap zonder logo. Nog geen geverifieerde CJ-SKU, prijs, EU-documenten of NL-verzending; niet bestelbaar.') ON CONFLICT DO NOTHING",['kap-schuin-zwart-60']);
+  // Existing unreviewed HyperSKU concepts can move to CJ without erasing manually reviewed quotes.
+  await query("UPDATE kap_sourcing SET supplier='CJdropshipping',notes='CJdropshipping als kandidaat. Model, logo, exacte EU-documenten, prijs en dropshiplevering naar Nederland nog niet bewezen.' WHERE sku=$1 AND supplier='HyperSKU' AND workflow_status='research' AND coalesce(request_id,'')='' AND coalesce(provider_sku,'')=''",['kap-schuin-zwart-60']);
   const count=await one('SELECT count(*)::int AS count FROM kap_users');
   if(count.count===0){
     const email=process.env.KAP_ADMIN_EMAIL;const password=process.env.KAP_ADMIN_PASSWORD;
@@ -353,6 +356,81 @@ async function handler(req,res){
       query(`SELECT o.id,o.number,o.status,o.payment_status,o.total_cents,o.created_at,c.first_name,c.last_name,c.email FROM kap_orders o JOIN kap_customers c ON c.id=o.customer_id WHERE o.source<>'sandbox' ORDER BY o.created_at DESC LIMIT 6`),
       query(`SELECT t.id,t.number,t.subject,t.status,t.priority,t.updated_at,c.email FROM kap_tickets t LEFT JOIN kap_customers c ON c.id=t.customer_id LEFT JOIN kap_orders o ON o.id=t.order_id WHERE o.id IS NULL OR o.source<>'sandbox' ORDER BY t.updated_at DESC LIMIT 6`)
     ]);return json(res,200,{orders:a,tickets:b,customers:c,recent_orders:d.rows,recent_tickets:e.rows});
+  }
+  if(p==='/api/cj/status'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    return json(res,200,{provider:'CJdropshipping',configured:cj.configured,mode:'catalog-and-sourcing',checkout_enabled:false,real_orders_enabled:false,
+      docs:'https://developers.cjdropshipping.com/en/api/api2/',note:cj.configured?'CJ API-sleutel server-side aanwezig; productdocumenten en levering blijven een aparte controle.':'CJ_API_KEY ontbreekt. Voeg uitsluitend in Render de server-side API-sleutel toe.'});
+  }
+  if(p==='/api/cj/search'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    const q=clean(url.searchParams.get('q'),110);
+    return json(res,200,await cj.search(q,{page:Number(url.searchParams.get('page')||1)}));
+  }
+  if(p==='/api/cj/product'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    return json(res,200,{item:await cj.product(clean(url.searchParams.get('pid'),120)),verified_compliance:false});
+  }
+  if(p==='/api/cj/variants'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    return json(res,200,{items:await cj.variants(clean(url.searchParams.get('pid'),120))});
+  }
+  if(p==='/api/cj/stock'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    return json(res,200,{stock:await cj.stock(clean(url.searchParams.get('vid'),120)),not_reserved:true});
+  }
+  if(p==='/api/cj/freight'&&method==='POST'){
+    requireRole(user,['owner','manager']);
+    const {data}=await body(req,4000);
+    const rates=await cj.freight({vid:clean(data.vid,120),origin:clean(data.origin||'CN',2),zip:clean(data.zip,16)});
+    return json(res,200,{rates,currency:'USD',destination:'NL',not_a_binding_quote:true});
+  }
+  if(p==='/api/cj/attach'&&method==='POST'){
+    requireRole(user,['owner','manager']);
+    const {data}=await body(req,4000);
+    const sku=clean(data.sku,120),pid=clean(data.pid,120),vid=clean(data.vid,120);
+    const existing=await one('SELECT * FROM kap_sourcing WHERE sku=$1',[sku]);
+    if(!existing)throw bad(404,'KAP-productdossier niet gevonden');
+    if(existing.workflow_status==='approved')throw bad(409,'Goedgekeurde producten eerst handmatig deactiveren');
+    // Read the actual CJ listing before accepting a candidate mapping; never imply that it is certified.
+    const realProduct=await cj.product(pid);
+    if(!realProduct)throw bad(404,'CJ-product niet gevonden');
+    const item=await one(`UPDATE kap_sourcing
+       SET supplier='CJdropshipping',workflow_status='research',cj_product_id=$2,cj_variant_id=$3,
+         provider_sku='',request_id='',unit_cost_cents=NULL,shipping_cents=NULL,
+         eu_documents_verified=false,logo_free_verified=false,single_unit_verified=false,
+         nl_delivery_verified=false,api_mapping_verified=false,
+         notes='CJ-cataloguskandidaat geselecteerd, nog NIET gecontroleerd op exact design, logo, EU-documenten, variant, NL-vracht of prijs.',
+         cj_last_checked_at=now(),updated_at=now()
+       WHERE sku=$1 RETURNING *`,[sku,pid,vid]);
+    await audit(user.id,'sourcing',null,'cj_candidate_attached',{sku,pid,has_variant:!!vid,approved:false});
+    return json(res,200,{item,product_verified_by_api:true,compliance_verified:false,checkout_enabled:false});
+  }
+  if(p==='/api/cj/sourcing/request'&&method==='POST'){
+    requireRole(user,['owner','manager']);
+    if(demoMode||!dbUrl)throw bad(409,'CJ-sourcing vereist een persistente KAP-database');
+    const {data}=await body(req,5000);
+    const sku=clean(data.sku,120);
+    const current=await one('SELECT * FROM kap_sourcing WHERE sku=$1',[sku]);
+    if(!current)throw bad(404,'KAP-productdossier ontbreekt');
+    if(current.workflow_status==='approved'||(current.supplier==='CJdropshipping'&&current.request_id))
+      throw bad(409,'Dit dossier is al goedgekeurd of heeft al een CJ-aanvraag. Controleer eerst de bestaande aanvraag.');
+    const result=await cj.createSourcing({
+      productName:clean(data.productName,180),productImage:clean(data.productImage,400),
+      productUrl:clean(data.productUrl,400),remark:clean(data.remark,180)
+    });
+    const item=await one(`UPDATE kap_sourcing
+      SET supplier='CJdropshipping',workflow_status='requested',request_id=$2,notes='CJ-sourcingaanvraag verzonden. Alleen een aanvraag, nog geen prijs, certificaat of voorraad bevestigd.',
+      updated_at=now() WHERE sku=$1 RETURNING *`,[sku,result.sourceId]);
+    await audit(user.id,'sourcing',null,'cj_sourcing_requested',{sku,request_id:result.sourceId});
+    return json(res,201,{item,created:true,no_order_placed:true,no_payment:true});
+  }
+  if(p==='/api/cj/sourcing/status'&&method==='GET'){
+    requireRole(user,['owner','manager']);
+    const current=await one('SELECT supplier,request_id FROM kap_sourcing WHERE sku=$1',[clean(url.searchParams.get('sku'),120)]);
+    if(!current||current.supplier!=='CJdropshipping'||!current.request_id)throw bad(404,'Nog geen CJ-sourcingaanvraag');
+    const status=await cj.sourcingStatus(current.request_id);
+    return json(res,200,{status,compliance_verified:false,checkout_enabled:false});
   }
   if(p==='/api/sourcing'&&method==='GET'){
     requireRole(user,['owner','manager']);
