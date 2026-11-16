@@ -128,4 +128,3 @@ ALTER TABLE kap_sourcing ENABLE ROW LEVEL SECURITY;
 
 -- Existing PostgreSQL deployments receive non-destructive column migrations at startup.
 -- New PostgreSQL and SQLite demo databases already have these columns in CREATE TABLE.
-CREATE INDEX IF NOT EXISTS kap_sourcing_cj_pid_idx ON kap_sourcing(cj_product_id);
