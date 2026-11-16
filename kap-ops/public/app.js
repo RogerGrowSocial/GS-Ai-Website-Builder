@@ -261,8 +261,8 @@ async function cjDashboard(){
       const items=response.items||[];
       results.innerHTML=items.length
         ? '<p class="muted">'+items.length+' gevonden op deze pagina, '+response.total+' in CJ. Prijzen in USD; verzending NIET inbegrepen.</p>'
-          +table(['CJ-product','Prijs USD','Voorraad','Claim','Actie'],items.map(p=>
-            '<tr><td><strong>'+esc(p.title)+'</strong><br><small class="muted">'+esc(p.sku)+' · '+esc(p.pid)+'</small></td>'
+          +table(['Foto','CJ-product','Prijs USD','Voorraad','Claim','Actie'],items.map(p=>
+            '<tr><td>'+(p.image?'<img src="'+esc(p.image)+'" alt="CJ productfoto" style="width:72px;height:72px;object-fit:contain">':'—')+'</td><td><strong>'+esc(p.title)+'</strong><br><small class="muted">'+esc(p.sku)+' · '+esc(p.pid)+'</small></td>'
             +'<td>'+esc(p.price_usd??'Onbekend')+'</td><td>'+esc(p.verified_warehouse_stock)+'</td>'
             +'<td>'+(p.ce_claimed?'CJ vermeldt CE; bewijs vereist':'Niet bevestigd')+'</td>'
             +'<td><button class="secondary" data-cj-inspect="'+esc(p.pid)+'">Bekijk</button></td></tr>').join(''))
@@ -273,12 +273,17 @@ async function cjDashboard(){
         const body='<p class="muted">CJ-catalogusinformatie is niet onafhankelijk gecertificeerd. Alleen opslaan als ONGEKEURDE kandidaat.</p>'
           +'<details><summary>Catalogusdata en varianten bekijken</summary><pre style="white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto">'+esc(JSON.stringify({product:details.item,variants:variants.items},null,2).slice(0,10000))+'</pre></details>'
           +'<form id="cj-attach" class="stack"><label>Variant-ID (optioneel; te controleren in varianten)<input class="field" name="vid" placeholder="CJ variant ID" maxlength="120"></label>'
-          +'<button class="primary" type="submit">Bewaar deze productkandidaat in KAP Studio</button></form>';
+          +'<button class="primary" type="submit">Bewaar deze productkandidaat in KAP Studio</button></form>'
+          +'<form id="cj-freight" class="stack"><h3>Verzendkosten naar Nederland</h3><label>Exacte variant-ID<input class="field" name="vid" maxlength="120" required></label><label>Magazijnland (ISO-code)<input class="field" name="origin" value="CN" minlength="2" maxlength="2" required></label><label>Postcode bestemming<input class="field" name="zip" value="5038WL" maxlength="16"></label><button class="secondary" type="submit">Bereken CJ-verzendprijs</button><pre id="cj-freight-result" style="white-space:pre-wrap;max-height:180px;overflow:auto"></pre></form>';
         openModal('<span class="eyebrow">CJ / LEVERANCIERSKANDIDAAT</span><h2>'+esc(pid)+'</h2>'+body);
         $('#cj-attach').addEventListener('submit',ev=>{ev.preventDefault();tryAction(async()=>{
           const data={sku:'kap-schuin-zwart-60',pid,vid:String(new FormData(ev.target).get('vid')||'')};
           await api('/cj/attach',{method:'POST',data});
           closeModal();toast('CJ-kandidaat opgeslagen, alle verificaties blijven open');await navigate('sourcing');
+        })});
+        $('#cj-freight').addEventListener('submit',ev=>{ev.preventDefault();tryAction(async()=>{
+          const f=new FormData(ev.target);const rates=await api('/cj/freight',{method:'POST',data:{vid:f.get('vid'),origin:String(f.get('origin')).toUpperCase(),zip:f.get('zip')}});
+          const output=$('#cj-freight-result');if(output)output.textContent=JSON.stringify(rates,null,2).slice(0,6000);
         })});
       })));
     });
@@ -292,6 +297,17 @@ async function cjDashboard(){
       toast('CJ-sourcingverzoek aangemaakt: '+result.item.request_id);await navigate('sourcing');
     });
   });
+  const sourceRecord=(await api('/sourcing')).items.find(p=>p.sku==='kap-schuin-zwart-60');
+  if(sourceRecord?.supplier==='CJdropshipping'&&sourceRecord.request_id){
+    const note=document.createElement('div');
+    note.className='info-callout';
+    note.innerHTML='<strong>Bestaande CJ-sourcingaanvraag: '+esc(sourceRecord.request_id)+'</strong> <button class="secondary" id="cj-check-status">Bekijk status bij CJ</button><pre id="cj-source-status" style="white-space:pre-wrap;overflow:auto"></pre>';
+    host.appendChild(note);
+    $('#cj-check-status').addEventListener('click',()=>tryAction(async()=>{
+      const status=await api('/cj/sourcing/status?sku=kap-schuin-zwart-60');
+      $('#cj-source-status').textContent=JSON.stringify(status,null,2).slice(0,7000);
+    }));
+  }
 }
 
 async function products(){const r=await api('/products');setContent(head('CATALOG / CONTROLE','Productstatus','Vereiste controles vóór echte verkoop. Producten starten als concept.')+panel('Productoverzicht',table(['Product','SKU','Indicatieve prijs','Voorraad','Status','Beheer'],r.items.map(p=>`<tr><td><strong>${esc(p.title)}</strong></td><td>${esc(p.sku)}</td><td>${euro(p.price_cents)}</td><td>${p.stock_quantity}</td><td>${badge(p.status)}</td><td><button class="secondary" data-product="${esc(p.sku)}">Wijzigen</button></td></tr>`).join('')))+`<div class="info-callout"><strong>Verkoopbeveiliging:</strong> een voorbeeldproduct kan niet worden vrijgegeven zonder expliciete productgoedkeuring. In deze tijdelijke demo is "Verkoopklaar" volledig geblokkeerd. <a href="#" data-go="launch">Bekijk livegang-checklist ↗</a></div>`);bindLinks();document.querySelectorAll('[data-product]').forEach(b=>b.addEventListener('click',()=>{const p=r.items.find(x=>x.sku===b.dataset.product);openModal(`<span class="eyebrow">PRODUCTCONTROLE</span><h2>${esc(p.title)}</h2><form id="product-form" class="stack"><label>Status<select class="field" name="status">${statusOptions(['draft','ready','archived'],p.status)}</select></label><label>Voorraad<input class="field" type="number" min="0" name="stock_quantity" value="${p.stock_quantity}"></label><button class="primary">Opslaan</button></form><div class="info-callout">Productvrijgave vereist eerst leverancierscontrole en documentatie. De demo kan geen producten vrijgeven.</div>`);$('#product-form').addEventListener('submit',e=>{e.preventDefault();tryAction(async()=>{const f=new FormData(e.target);await api('/products',{method:'PATCH',data:{sku:p.sku,status:f.get('status'),stock_quantity:Number(f.get('stock_quantity'))}});closeModal();toast('Productstatus bijgewerkt');navigate('products')})})}));}
