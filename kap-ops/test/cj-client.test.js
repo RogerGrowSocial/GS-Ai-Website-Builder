@@ -35,7 +35,7 @@ test('CJ blocks absent API key and injection via arbitrary endpoints', async () 
   await assert.rejects(client.search('range hood'),/CJ_API_KEY/);
   const c2=new CJClient({apiKey:'CJ_TEST_KEY_SAFE_123456789',fetcher:async()=>{throw Error('should not be called')}});
   await assert.rejects(c2.http('https://evil.invalid'),/Ongeldige CJ API-route/);
-  assert.throws(()=>c2.search('x'),/minimaal drie/);
+  await assert.rejects(c2.search('x'),/minimaal drie/);
   assert.throws(()=>c2.freight({vid:'valid-id',origin:'INVALID'}),/magazijnlocatie/);
 });
 
