@@ -10,7 +10,7 @@ const publicHttps = value => {
   try {
     const url = new URL(value);
     if (url.protocol !== 'https:' || !url.hostname.includes('.') || url.username || url.password ||
-        /^(localhost|127\\.|10\\.|192\\.168\\.|169\\.254\\.|0\\.)/.test(url.hostname) || value.length > 400)
+        /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(url.hostname) || value.length > 400)
       throw Error('invalid');
     return url.href;
   } catch { throw fail(400, 'Gebruik een publiek bereikbare HTTPS-productafbeelding of productlink'); }
