@@ -1,0 +1,25 @@
+{
+  "name": "@kap/medusa-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "medusa develop",
+    "build": "medusa build",
+    "start": "medusa start",
+    "migrate": "medusa db:migrate"
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "dependencies": {
+    "@medusajs/admin-sdk": "2.22.6",
+    "@medusajs/cli": "2.22.6",
+    "@medusajs/framework": "2.22.6",
+    "@medusajs/medusa": "2.22.6"
+  },
+  "devDependencies": {
+    "@swc/core": "^1.7.28",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
+  }
+}
