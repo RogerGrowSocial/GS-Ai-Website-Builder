@@ -118,6 +118,13 @@ CREATE TABLE IF NOT EXISTS kap_sourcing (
  nl_delivery_verified boolean NOT NULL DEFAULT false,
  api_mapping_verified boolean NOT NULL DEFAULT false,
  notes text NOT NULL DEFAULT '',
+ cj_product_id text,
+ cj_variant_id text,
+ cj_listing_url text,
+ cj_last_checked_at timestamptz,
  updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE kap_sourcing ENABLE ROW LEVEL SECURITY;
+
+-- Existing PostgreSQL deployments receive non-destructive column migrations at startup.
+-- New PostgreSQL and SQLite demo databases already have these columns in CREATE TABLE.
