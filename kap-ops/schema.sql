@@ -121,3 +121,11 @@ CREATE TABLE IF NOT EXISTS kap_sourcing (
  updated_at timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE kap_sourcing ENABLE ROW LEVEL SECURITY;
+
+-- CJ catalog mapping is advisory until the exact appliance and EU evidence are verified.
+-- These columns do not create a purchasable variant, stock reservation or public order.
+ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_product_id text;
+ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_variant_id text;
+ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_listing_url text;
+ALTER TABLE kap_sourcing ADD COLUMN IF NOT EXISTS cj_last_checked_at timestamptz;
+CREATE INDEX IF NOT EXISTS kap_sourcing_cj_pid_idx ON kap_sourcing(cj_product_id);
