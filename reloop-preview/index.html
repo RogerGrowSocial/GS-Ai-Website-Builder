@@ -1,0 +1,783 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>reloop. — Koop en verkoop tweedehands mode</title><meta name="robots" content="noindex,nofollow">
+  <style>
+    :root{
+      --bg:#f6f8f7;
+      --surface:#ffffff;
+      --surface-2:#f2f5f4;
+      --line:#e4ebe8;
+      --text:#17332d;
+      --muted:#64756f;
+      --green:#0f8b6d;
+      --green-dark:#0b6f57;
+      --accent:#ffb648;
+      --danger:#e56478;
+      --shadow:0 20px 60px rgba(20,40,36,.08);
+      --radius:20px;
+      --radius-sm:14px;
+      --container:1360px;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color:var(--text);
+      background:linear-gradient(180deg,#fbfcfb 0%,#f5f8f6 100%);
+      font-size:14px;
+    }
+    img{max-width:100%;display:block}
+    button,input,select,textarea{font:inherit}
+    a{text-decoration:none;color:inherit}
+    button{cursor:pointer;border:0;background:none;color:inherit}
+    .wrap{max-width:var(--container);margin:0 auto;padding:0 28px}
+    .topbar{
+      position:sticky;top:0;z-index:40;
+      background:rgba(255,255,255,.9);
+      backdrop-filter: blur(14px);
+      border-bottom:1px solid rgba(228,235,232,.9);
+    }
+    .topbar-inner{display:flex;align-items:center;gap:18px;padding:16px 0}
+    .brand{font-weight:900;font-size:32px;letter-spacing:-1.8px;white-space:nowrap;color:#11453a}
+    .brand span{color:var(--green)}
+    .main-search{
+      flex:1;display:flex;align-items:center;gap:12px;background:var(--surface-2);border:1px solid #edf1ef;
+      border-radius:999px;padding:8px 10px 8px 16px;min-width:180px;
+    }
+    .main-search input{border:0;outline:none;background:transparent;width:100%;color:var(--text)}
+    .search-sep{width:1px;height:22px;background:#dfe6e3}
+    .search-mini{display:flex;align-items:center;gap:8px;color:var(--muted);white-space:nowrap}
+    .header-actions{display:flex;align-items:center;gap:10px;white-space:nowrap}
+    .btn,.btn-soft,.btn-outline,.icon-pill{
+      transition:.18s ease; border-radius:999px; display:inline-flex; align-items:center; justify-content:center; gap:9px;
+    }
+    .btn{background:var(--green);color:#fff;padding:12px 18px;font-weight:800;box-shadow:0 12px 28px rgba(15,139,109,.18)}
+    .btn:hover{background:var(--green-dark);transform:translateY(-1px)}
+    .btn-outline{padding:11px 16px;border:1px solid var(--line);background:#fff;font-weight:700}
+    .btn-outline:hover,.btn-soft:hover,.icon-pill:hover{border-color:#cfd8d4;background:#f8fbfa}
+    .btn-soft{padding:11px 16px;background:#fff;border:1px solid var(--line);font-weight:700}
+    .icon-pill{width:44px;height:44px;background:#fff;border:1px solid var(--line)}
+    .subnav{display:flex;gap:10px;align-items:center;padding:0 0 16px;overflow:auto}
+    .subnav button{padding:10px 14px;border-radius:999px;background:#f0f4f2;color:#53655f;font-weight:700;white-space:nowrap}
+    .subnav button.active{background:#e3f4ee;color:var(--green)}
+
+    .hero{padding:28px 0 20px}
+    .hero-grid{display:grid;grid-template-columns:1.2fr .95fr;gap:22px}
+    .hero-card,.showcase-card,.panel,.sidebar-card,.footer-card,.section-card,.stats-card{
+      background:var(--surface);border:1px solid rgba(228,235,232,.9);box-shadow:var(--shadow);border-radius:28px;
+    }
+    .hero-card{padding:34px;position:relative;overflow:hidden;min-height:360px;background:radial-gradient(circle at top left,#f1faf7 0%,#ffffff 48%,#fcfcfc 100%)}
+    .badge{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:#eef7f3;border-radius:999px;color:var(--green-dark);font-weight:800;font-size:12px;letter-spacing:.02em}
+    .badge-dot{width:8px;height:8px;border-radius:999px;background:var(--green)}
+    .hero h1{margin:18px 0 14px;font-size:clamp(34px,4.8vw,62px);line-height:.98;letter-spacing:-2.7px;max-width:680px}
+    .hero p{margin:0 0 26px;font-size:17px;line-height:1.65;color:var(--muted);max-width:580px}
+    .hero-actions{display:flex;gap:12px;flex-wrap:wrap}
+    .hero-meta{display:flex;gap:14px;flex-wrap:wrap;margin-top:28px}
+    .meta-chip{padding:13px 16px;border-radius:18px;background:#fff;border:1px solid #edf2ef;font-weight:700;color:#40554f;display:flex;gap:10px;align-items:center}
+    .meta-chip b{color:var(--text)}
+    .hero-glow{position:absolute;right:-120px;top:-50px;width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,#dff5ed 0%,rgba(223,245,237,0) 70%)}
+    .floating-card{position:absolute;right:28px;bottom:28px;width:240px;background:#fff;border:1px solid #edf2ef;border-radius:24px;padding:16px;box-shadow:0 16px 40px rgba(16,40,35,.08)}
+    .floating-row{display:flex;align-items:center;gap:12px}
+    .mini-thumb{width:54px;height:54px;border-radius:16px;background:linear-gradient(135deg,#f2eee7,#e9e2d6);overflow:hidden;flex:none}
+    .floating-title{font-weight:800;line-height:1.2}
+    .floating-price{font-weight:900;font-size:18px;margin-top:2px}
+    .floating-note{margin-top:10px;color:var(--muted);font-size:12px}
+
+    .showcase-card{padding:18px;background:linear-gradient(180deg,#ffffff 0%,#fbfcfb 100%)}
+    .showcase-top{display:flex;align-items:center;justify-content:space-between;padding:4px 4px 16px}
+    .showcase-top h3{margin:0;font-size:18px;letter-spacing:-.5px}
+    .showcase-top p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .showcase-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .show-tile{border-radius:22px;overflow:hidden;min-height:210px;position:relative;background:#edf2ef}
+    .show-tile.large{grid-column:1/-1;min-height:250px}
+    .show-tile img{width:100%;height:100%;object-fit:cover}
+    .show-overlay{position:absolute;inset:auto 14px 14px 14px;padding:14px 16px;background:rgba(255,255,255,.92);backdrop-filter:blur(10px);border-radius:18px;border:1px solid rgba(255,255,255,.7)}
+    .show-label{font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase;color:var(--green-dark)}
+    .show-title{margin-top:6px;font-size:18px;font-weight:900;letter-spacing:-.5px}
+    .show-copy{margin-top:4px;color:var(--muted);line-height:1.4}
+
+    .section{padding:8px 0 0}
+    .section-head{display:flex;align-items:end;justify-content:space-between;gap:14px;margin-bottom:16px}
+    .section-head h2{margin:0;font-size:28px;letter-spacing:-1.2px}
+    .section-head p{margin:5px 0 0;color:var(--muted)}
+    .link-btn{display:inline-flex;gap:8px;align-items:center;color:var(--green-dark);font-weight:800}
+
+    .quick-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .stats-card{padding:22px}
+    .stats-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .stats-title{font-size:13px;font-weight:800;color:#5a6d66;text-transform:uppercase;letter-spacing:.06em}
+    .stats-value{margin-top:14px;font-size:32px;font-weight:900;letter-spacing:-1.4px}
+    .stats-copy{margin-top:8px;color:var(--muted);line-height:1.5}
+
+    .category-row{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+    .cat-card{background:#fff;border:1px solid var(--line);border-radius:24px;padding:14px;box-shadow:0 16px 32px rgba(20,40,36,.05);cursor:pointer;transition:.18s ease}
+    .cat-card:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(20,40,36,.08)}
+    .cat-visual{border-radius:18px;height:108px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8faf9,#eef3f0);overflow:hidden}
+    .cat-card h4{margin:12px 0 4px;font-size:15px;letter-spacing:-.2px}
+    .cat-card p{margin:0;color:var(--muted);font-size:12px}
+
+    .browse-layout{display:grid;grid-template-columns:300px 1fr;gap:18px;margin-top:4px}
+    .sidebar-card{padding:18px;align-self:start;position:sticky;top:124px}
+    .filter-block + .filter-block{margin-top:18px;padding-top:18px;border-top:1px solid #edf1ef}
+    .filter-title{margin:0 0 12px;font-size:13px;font-weight:900;color:#485b55;text-transform:uppercase;letter-spacing:.06em}
+    .filter-stack{display:flex;flex-wrap:wrap;gap:8px}
+    .filter-chip{padding:10px 12px;border-radius:999px;background:#f1f4f3;color:#53655f;font-weight:700;font-size:13px}
+    .filter-chip.active{background:#e3f4ee;color:var(--green-dark)}
+    .filter-input,.filter-select{width:100%;border:1px solid var(--line);border-radius:16px;padding:12px 14px;background:#fff;outline:none;color:var(--text)}
+    .range-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .helper{margin-top:10px;font-size:12px;color:var(--muted);line-height:1.45}
+
+    .browse-main{min-width:0}
+    .toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:24px;padding:14px 16px;box-shadow:0 12px 30px rgba(20,40,36,.05)}
+    .toolbar-left,.toolbar-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .pill{padding:10px 13px;border-radius:999px;background:#f2f5f4;font-weight:800;color:#53655f}
+    .pill.active{background:#e3f4ee;color:var(--green-dark)}
+    .products{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:18px}
+    .product-card{background:#fff;border:1px solid var(--line);border-radius:24px;overflow:hidden;box-shadow:0 18px 36px rgba(20,40,36,.05);transition:.18s ease;cursor:pointer}
+    .product-card:hover{transform:translateY(-3px);box-shadow:0 20px 40px rgba(20,40,36,.09)}
+    .product-media{position:relative;aspect-ratio:4/5;background:#edf2ef}
+    .product-media img{width:100%;height:100%;object-fit:cover}
+    .save-btn,.label-badge{position:absolute;z-index:2}
+    .save-btn{right:12px;top:12px;width:38px;height:38px;border-radius:999px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);display:grid;place-items:center;box-shadow:0 10px 25px rgba(20,40,36,.09)}
+    .save-btn.active{color:var(--danger)}
+    .label-badge{left:12px;top:12px;padding:7px 9px;border-radius:999px;background:rgba(255,255,255,.92);font-size:11px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+    .product-body{padding:14px 14px 16px}
+    .price-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .price{font-size:21px;font-weight:900;letter-spacing:-.8px}
+    .like-note{font-size:12px;color:var(--muted)}
+    .product-title{margin:8px 0 6px;font-size:15px;font-weight:800;letter-spacing:-.2px;line-height:1.3}
+    .product-meta{color:var(--muted);line-height:1.5;font-size:13px}
+    .seller-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #edf1ef;gap:10px}
+    .seller-mini{display:flex;align-items:center;gap:10px;min-width:0}
+    .avatar{width:32px;height:32px;border-radius:999px;background:linear-gradient(135deg,#d9efe7,#cde5dc);display:grid;place-items:center;font-weight:900;color:#356153;flex:none}
+    .seller-name{font-weight:800;font-size:13px}
+    .seller-rating{font-size:12px;color:var(--muted)}
+
+    .footer{padding:38px 0 60px}
+    .footer-card{padding:24px 26px;display:flex;justify-content:space-between;gap:16px;align-items:center;background:linear-gradient(135deg,#103d33,#0f6a54);color:#fff}
+    .footer-card h3{margin:0;font-size:26px;letter-spacing:-1px}
+    .footer-card p{margin:8px 0 0;color:rgba(255,255,255,.78);max-width:620px;line-height:1.6}
+
+    .overlay{position:fixed;inset:0;background:rgba(11,26,22,.58);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;padding:24px;z-index:80}
+    .overlay.show{display:flex}
+    .modal{background:#fff;border-radius:30px;border:1px solid #edf1ef;box-shadow:0 36px 90px rgba(14,28,24,.24);width:min(1100px,100%);max-height:92vh;overflow:auto;position:relative;padding:26px}
+    .modal.narrow{width:min(560px,100%)}
+    .close-btn{position:absolute;right:18px;top:18px;width:42px;height:42px;border-radius:999px;background:#f2f5f4;display:grid;place-items:center}
+    .detail-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:28px}
+    .detail-media{border-radius:24px;overflow:hidden;aspect-ratio:4/5;background:#edf2ef}
+    .detail-media img{width:100%;height:100%;object-fit:cover}
+    .detail-side h2{margin:14px 0 10px;font-size:36px;letter-spacing:-1.4px;line-height:1.02}
+    .detail-topline{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .detail-sub{color:var(--muted);font-size:15px;line-height:1.55;margin:0 0 12px}
+    .detail-price{font-size:40px;font-weight:900;letter-spacing:-1.8px;margin:6px 0}
+    .detail-small{color:var(--muted);font-size:13px}
+    .fact-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:20px 0}
+    .fact-box{padding:14px;border:1px solid var(--line);border-radius:18px;background:#fafcfb}
+    .fact-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6a7b75;font-weight:900}
+    .fact-value{margin-top:6px;font-weight:800;font-size:15px}
+    .detail-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+    .description-box,.seller-box,.notice{border:1px solid var(--line);border-radius:20px;padding:16px;background:#fcfdfc}
+    .description-box p,.notice p{margin:0;color:var(--muted);line-height:1.65}
+    .seller-box{display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .seller-box .seller-mini{align-items:center}
+
+    .field-label{display:block;margin:14px 0 8px;font-weight:800;color:#425650}
+    .field,.select,.textarea{width:100%;border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px 14px;outline:none;color:var(--text)}
+    .textarea{min-height:110px;resize:vertical}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .upload-box{border:1.5px dashed #b8ccc4;border-radius:22px;background:#f6faf8;padding:24px;text-align:center;color:#567168}
+    .upload-box input{display:none}
+    .upload-preview{width:100px;height:100px;border-radius:18px;object-fit:cover;margin:0 auto 10px}
+    .summary-line{display:flex;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid #eef2f0}
+    .summary-line.total{font-size:20px;font-weight:900;border-bottom:0;padding-bottom:0}
+    .notice{background:#eef7f3}
+    .notice strong{display:block;margin-bottom:6px}
+    .chat-thread{display:flex;flex-direction:column;gap:12px;margin:18px 0}
+    .bubble{max-width:82%;padding:14px 16px;border-radius:18px;background:#eef4f1;line-height:1.55;color:#385048}
+    .bubble.mine{background:var(--green);color:#fff;margin-left:auto}
+    .mini-card-row{display:grid;grid-template-columns:90px 1fr;gap:14px;align-items:center;padding:14px;border:1px solid var(--line);border-radius:20px;background:#fff}
+    .mini-card-row .thumb{width:90px;height:110px;border-radius:16px;overflow:hidden;background:#edf2ef}
+    .status-pill{display:inline-flex;padding:8px 10px;border-radius:999px;background:#eaf5f0;color:var(--green-dark);font-weight:900;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+    .empty{padding:42px 16px;text-align:center;border:1px dashed #c9d8d2;border-radius:24px;background:#fafcfb;color:#64756f}
+    .empty h3{margin:0 0 8px;color:var(--text);font-size:22px;letter-spacing:-.6px}
+    .toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,30px);background:#11372f;color:#fff;padding:14px 18px;border-radius:999px;font-weight:700;box-shadow:0 20px 50px rgba(13,29,25,.2);opacity:0;pointer-events:none;transition:.2s ease;z-index:120}
+    .toast.show{opacity:1;transform:translate(-50%,0)}
+    .hide{display:none !important}
+    .mobile-only{display:none}
+
+    @media (max-width:1200px){
+      .category-row{grid-template-columns:repeat(3,1fr)}
+      .products{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .quick-row{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width:980px){
+      .topbar-inner{flex-wrap:wrap}
+      .main-search{order:3;flex-basis:100%}
+      .hero-grid,.browse-layout,.detail-grid{grid-template-columns:1fr}
+      .sidebar-card{position:static}
+      .floating-card{position:relative;right:auto;bottom:auto;margin-top:22px;width:100%}
+      .showcase-grid{grid-template-columns:1fr 1fr}
+      .products{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .category-row{grid-template-columns:repeat(2,1fr)}
+    }
+    @media (max-width:700px){
+      .wrap{padding:0 16px}
+      .brand{font-size:28px}
+      .subnav{padding-bottom:12px}
+      .hero-card,.showcase-card,.sidebar-card,.stats-card,.footer-card,.toolbar{border-radius:22px}
+      .hero-card{padding:24px}
+      .hero h1{font-size:40px}
+      .hero p{font-size:15px}
+      .hero-actions,.hero-meta,.toolbar,.toolbar-left,.toolbar-right,.section-head,.footer-card{flex-direction:column;align-items:stretch}
+      .showcase-grid,.products,.quick-row,.category-row,.grid-2,.fact-grid,.detail-actions{grid-template-columns:1fr}
+      .header-actions .btn-outline .label{display:none}
+      .header-actions{gap:8px}
+      .show-tile.large{min-height:210px}
+      .products{gap:14px}
+      .detail-side h2{font-size:30px}
+      .btn,.btn-soft,.btn-outline{justify-content:center}
+      .mobile-only{display:block}
+      .desktop-only{display:none}
+    }
+  
+:root{--bg:#fff;--text:#202724;--muted:#69736e;--green:#007c70;--green-dark:#006358;--line:#e5e7e5;--shadow:none;--container:1340px}body{background:#fff;font-family:Inter,Arial,sans-serif}.topbar{background:#fff;backdrop-filter:none}.topbar-inner{padding:15px 0;gap:20px}.brand{color:#202724;letter-spacing:-2px}.main-search{border-radius:8px;background:#f3f4f3}.main-search .btn{padding:9px 16px;box-shadow:none}.btn,.btn-soft,.btn-outline{border-radius:7px;box-shadow:none}.subnav{gap:25px;padding:0;min-height:44px;border-top:1px solid #f1f2f1}.subnav button{border-radius:0;background:none;padding:12px 0;font-weight:600;color:#57635d}.subnav button.active{background:none;border-bottom:2px solid var(--green);color:var(--green)}.hero{padding-top:23px}.editorial{display:grid;grid-template-columns:46% 54%;background:#e8eee8;min-height:335px;overflow:hidden;border-radius:10px}.editorial-copy{padding:45px;align-self:center}.eyebrow-new{font-size:11px;font-weight:800;letter-spacing:2px;color:#52766c}.editorial h1{font-size:clamp(34px,4.3vw,58px);line-height:1.03;letter-spacing:-2.5px;margin:18px 0;color:#193c33;font-weight:800}.editorial p{font-size:16px;max-width:385px;margin-bottom:23px;color:#4e645b}.editorial-photo{position:relative;min-height:335px;background:#d1d9ce}.editorial-photo img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 40%}.photo-label{position:absolute;bottom:20px;right:20px;background:white;padding:12px 17px;font-weight:700;border-radius:7px}.hero-foot{font-size:12px;color:#58746a;margin-top:22px}.trustbar{display:flex;justify-content:center;gap:45px;padding:18px 0 2px;color:#557067;font-size:13px;font-weight:600}.section{padding-top:21px}.section-head h2{font-size:24px;letter-spacing:-.6px}.section-head p{font-size:13px}.category-row{gap:13px}.cat-card{border:none;box-shadow:none;padding:0;border-radius:0;text-align:left}.cat-visual{height:118px;border-radius:8px}.cat-visual img{width:100%;height:100%;object-fit:cover}.cat-card h4{margin-top:9px}.cat-card p{display:none}.browse-layout{grid-template-columns:220px 1fr;gap:25px}.sidebar-card{border:0;border-right:1px solid var(--line);border-radius:0;padding:4px 20px 12px 0;top:115px}.filter-chip{border-radius:5px;padding:8px 10px;font-size:12px}.filter-input,.filter-select{border-radius:6px}.filter-title{font-size:12px}.toolbar{border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0 0 12px}.pill{border-radius:6px;padding:8px 11px}.products{grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;margin-top:16px}.product-card{border:none;border-radius:0;box-shadow:none}.product-card:hover{transform:none;box-shadow:none}.product-media{border-radius:8px;overflow:hidden;aspect-ratio:3/4}.product-media img{transition:transform .2s}.product-card:hover .product-media img{transform:scale(1.035)}.product-body{padding:9px 1px}.price{font-size:17px;letter-spacing:-.4px}.product-title{font-size:14px;font-weight:600;margin:6px 0 3px}.product-meta{font-size:12px}.seller-row{margin-top:7px;padding-top:0;border:0}.seller-row>.btn-soft{display:none}.seller-mini .avatar{width:23px;height:23px}.seller-name{font-size:12px}.seller-rating{font-size:11px}.label-badge{font-size:9px;border-radius:4px;padding:5px 7px}.save-btn{width:32px;height:32px;right:8px;top:8px}.like-note{font-size:11px}.site-footer{margin-top:38px;padding-top:24px;padding-bottom:30px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;color:var(--muted)}.site-footer p{margin:4px 0}.modal{border-radius:14px}.fact-box,.description-box,.seller-box,.notice,.mini-card-row,.field,.select,.textarea,.upload-box{border-radius:8px}.detail-media{border-radius:8px}.upload-box{display:block}.status-pill{border-radius:5px}.toast{border-radius:8px}#browseSection{scroll-margin-top:135px}
+@media(max-width:1200px){.products{grid-template-columns:repeat(4,minmax(0,1fr))}}@media(max-width:980px){.editorial{grid-template-columns:1fr 1fr}.editorial-copy{padding:28px}.browse-layout{grid-template-columns:1fr}.sidebar-card{position:static;display:none}.products{grid-template-columns:repeat(3,minmax(0,1fr))}.category-row{grid-template-columns:repeat(3,1fr)}}@media(max-width:700px){.editorial{grid-template-columns:1fr}.editorial-photo{min-height:210px}.editorial-copy{padding:24px}.trustbar{gap:12px;flex-wrap:wrap;font-size:11px}.products{grid-template-columns:repeat(2,minmax(0,1fr))}.category-row{grid-template-columns:repeat(3,1fr)}.cat-visual{height:80px}.site-footer{display:block}.header-actions .btn-soft{font-size:12px;padding:8px}.header-actions .btn{padding:8px}.topbar-inner{gap:10px}.toolbar{align-items:flex-start}.toolbar-left,.toolbar-right{flex-direction:row}.detail-actions{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <div class="topbar-inner">
+        <button class="brand" onclick="resetHome()">re<span>loop</span>.</button>
+        <div class="main-search">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <input id="globalSearch" placeholder="Zoek op merk, item of stijl" oninput="state.query=this.value; renderProducts()">
+          <span class="search-sep"></span>
+          <div class="search-mini desktop-only">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s7-4.35 7-11a7 7 0 10-14 0c0 6.65 7 11 7 11z"></path><circle cx="12" cy="10" r="2.5"></circle></svg>
+            Nederland
+          </div>
+          <button class="btn" onclick="browseSection()">Zoeken</button>
+        </div>
+        <div class="header-actions">
+          <button class="btn-soft" onclick="openMessages()">Berichten</button>
+          <button class="btn-soft" onclick="showFavorites()">Favorieten</button>
+          <button class="btn-outline" onclick="openAccount()">Profiel</button>
+          <button class="btn" onclick="openSell()">Verkopen</button>
+        </div>
+      </div>
+      <nav class="subnav" id="subnav"></nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero wrap" id="homeSection"><div class="editorial"><div class="editorial-copy"><div class="eyebrow-new">MODE MET EEN TWEEDE LEVEN</div><h1>Mooi gevonden.<br>Mooi doorgegeven.</h1><p>Ontdek unieke kleding van andere modeliefhebbers. Geef jouw favoriete items een nieuw verhaal.</p><div class="hero-actions"><button class="btn" onclick="browseSection()">Ontdek de collectie →</button><button class="btn-outline" onclick="openSell()">Verkoop je kleding</button></div><div class="hero-foot">♡  Tweedehands is de nieuwe eerste keuze.</div></div><div class="editorial-photo"><img src="assets/1483985988355-763728e1935b.jpg" alt="Mode en kleding" onerror="fallbackImg(this)"><div class="photo-label">Vind jouw volgende favoriet.</div></div></div><div class="trustbar"><span>✓ &nbsp; Veilig betalen</span><span>♧ &nbsp; Geef kleding een tweede leven</span><span>↗ &nbsp; Zelf gemakkelijk verkopen</span></div></section>
+
+    <section class="section wrap">
+      <div class="section-head">
+        <div>
+          <h2>Shop op categorie</h2>
+          <p>Vind precies wat bij jouw stijl past.</p>
+        </div>
+        <button class="link-btn" onclick="browseSection()">Ga naar alle items →</button>
+      </div>
+      <div class="category-row" id="categoryRow"></div>
+    </section>
+
+    <section class="section wrap" id="browseSection">
+      <div class="section-head">
+        <div>
+          <h2>Nieuw binnen</h2>
+          <p>Ontdek de nieuwste vondsten uit de community.</p>
+        </div>
+        <button class="btn-soft" onclick="clearFilters()">Filters resetten</button>
+      </div>
+      <div class="browse-layout">
+        <aside class="sidebar-card">
+          <div class="filter-block">
+            <h3 class="filter-title">Categorie</h3>
+            <div class="filter-stack" id="catFilters"></div>
+          </div>
+          <div class="filter-block">
+            <h3 class="filter-title">Staat</h3>
+            <div class="filter-stack" id="conditionFilters"></div>
+          </div>
+          <div class="filter-block">
+            <h3 class="filter-title">Prijs</h3>
+            <div class="range-grid">
+              <input id="minPrice" class="filter-input" type="number" min="0" placeholder="Min" oninput="state.minPrice=this.value; renderProducts()">
+              <input id="maxPrice" class="filter-input" type="number" min="0" placeholder="Max" oninput="state.maxPrice=this.value; renderProducts()">
+            </div>
+            <div class="helper"></div>
+          </div>
+          <div class="filter-block">
+            <h3 class="filter-title">Merk</h3>
+            <select id="brandFilter" class="filter-select" onchange="state.brand=this.value; renderProducts()"></select>
+          </div>
+          
+        </aside>
+        <div class="browse-main">
+          <div class="toolbar">
+            <div class="toolbar-left" id="topFilters"></div>
+            <div class="toolbar-right">
+              <span class="pill" id="resultCount">0 items</span>
+              <button class="pill" onclick="showFavorites()">Favorieten</button>
+              <select id="sortSelect" class="filter-select" style="width:auto;min-width:170px" onchange="state.sort=this.value; renderProducts()">
+                <option value="popular">Meest relevant</option>
+                <option value="low">Prijs laag → hoog</option>
+                <option value="high">Prijs hoog → laag</option>
+                <option value="new">Nieuw toegevoegd</option>
+              </select>
+            </div>
+          </div>
+          <div class="products" id="productGrid"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap"><div><div class="brand">re<span>loop</span>.</div><p>Geef mooi een tweede leven.</p></div><div>Ontdek &nbsp; · &nbsp; Verkopen &nbsp; · &nbsp; Favorieten</div><small>© 2026 reloop.</small></footer>
+
+  <div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+    <div class="modal" id="modal"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const navTabs = [
+      {key:'home',label:'Home'},
+      {key:'catalogus',label:'Catalogus'},
+      {key:'dames',label:'Dames'},
+      {key:'heren',label:'Heren'},
+      {key:'accessoires',label:'Accessoires'},
+      {key:'premium',label:'Premium selecties'}
+    ];
+
+    const categoryInfo = [
+      {name:'Jassen', emoji:'🧥', desc:'Vintage, denim en designer'},
+      {name:'Jurken', emoji:'👗', desc:'Casual tot occasion'},
+      {name:'Sneakers', emoji:'👟', desc:'Streetwear & daily wear'},
+      {name:'Tassen', emoji:'👜', desc:'Crossbody, tote & luxe'},
+      {name:'Accessoires', emoji:'🕶️', desc:'Sjaals, petten en meer'},
+      {name:'Premium', emoji:'✨', desc:'Topstukken en curated picks'}
+    ];
+
+    const categoryPhotos={'Jassen':'assets/1529139574466-a303027c1d8b.jpg','Jurken':'assets/1496747611176-843222e1e57c.jpg','Sneakers':'assets/1542291026-7eec264c27ff.jpg','Tassen':'assets/1584917865442-de89df76afd3.jpg','Accessoires':'assets/1511499767150-a48a237f0083.jpg','Premium':'assets/1512436991641-6745cdb1723f.jpg'};
+const items = [
+      {id:1,name:'Vintage jas',brand:'COS',category:'Jassen',condition:'Zo goed als nieuw',size:'M',gender:'Dames',price:34,likes:41,seller:'Mila',rating:'4,9',city:'Utrecht',tag:'Topkeuze',image:'assets/1529139574466-a303027c1d8b.jpg',desc:'Stijlvolle jas met een rustige premium uitstraling. Nauwelijks gedragen en perfect voor een garderobe.'},
+      {id:2,name:'Oversized wollen blazer',brand:'ARKET',category:'Jassen',condition:'Zeer goed',size:'L',gender:'Dames',price:42,likes:19,seller:'Noor',rating:'4,8',city:'Tilburg',tag:'Curated',image:'assets/1483985988355-763728e1935b.jpg',desc:'Warme oversized blazer met clean silhouet. Mooi item voor herfst en winter.'},
+      {id:3,name:'Leren crossbody tas',brand:'Mango',category:'Tassen',condition:'Zeer goed',size:'One size',gender:'Dames',price:26,likes:23,seller:'Lotte',rating:'4,9',city:'Amsterdam',tag:'Populair',image:'assets/1584917865442-de89df76afd3.jpg',desc:'Compacte crossbody tas in neutrale kleur, ideaal voor dagelijks gebruik.'},
+      {id:4,name:'Straight fit denim jacket',brand:'Levi\'s',category:'Jassen',condition:'Goed',size:'M',gender:'Heren',price:29,likes:34,seller:'Sam',rating:'4,7',city:'Breda',tag:'Vintage',image:'assets/1515886657613-9f3515b0c78f.jpg',desc:'Stevig denim jack met tijdloze fit en een karaktervolle wassing.'},
+      {id:5,name:'Minimalistische knit jurk',brand:'Selected Femme',category:'Jurken',condition:'Zo goed als nieuw',size:'S',gender:'Dames',price:31,likes:16,seller:'Sophie',rating:'5,0',city:'Den Bosch',tag:'Nieuw',image:'assets/1524504388940-b1c1722653e1.jpg',desc:'Comfortabele knit jurk die perfect past bij een tijdloze garderobe.'},
+      {id:6,name:'Nike rode sneakers',brand:'Nike',category:'Sneakers',condition:'Zeer goed',size:'42',gender:'Heren',price:38,likes:55,seller:'Daan',rating:'4,8',city:'Eindhoven',tag:'Populair',image:'assets/1542291026-7eec264c27ff.jpg',desc:'Sportieve sneaker met retro uitstraling en nette staat.'},
+      {id:7,name:'Designer zonnebril',brand:'Ray-Ban',category:'Accessoires',condition:'Zo goed als nieuw',size:'One size',gender:'Unisex',price:45,likes:27,seller:'Iris',rating:'4,9',city:'Rotterdam',tag:'Premium',image:'assets/1511499767150-a48a237f0083.jpg',desc:'Klassieke zonnebril in zeer goede staat, inclusief koker .'},
+      {id:8,name:'Zachte hoodie in ecru',brand:'Nike',category:'Premium',condition:'Zeer goed',size:'L',gender:'Unisex',price:33,likes:48,seller:'Jules',rating:'4,8',city:'Tilburg',tag:'Aanrader',image:'assets/1503342217505-b0a15ec3261c.jpg',desc:'Trendy oversized hoodie met cleane look en populaire maat.'},
+      {id:9,name:'Satijnen avondjurk',brand:'Zara',category:'Jurken',condition:'Zeer goed',size:'M',gender:'Dames',price:24,likes:22,seller:'Anna',rating:'4,7',city:'Nijmegen',tag:'Elegant',image:'assets/1496747611176-843222e1e57c.jpg',desc:'Licht glanzende jurk, ideaal voor feestelijke momenten.'},
+      {id:10,name:'Canvas shopper met leren details',brand:'Massimo Dutti',category:'Tassen',condition:'Goed',size:'One size',gender:'Dames',price:19,likes:13,seller:'Eva',rating:'4,6',city:'Groningen',tag:'Betaalbaar',image:'assets/1584917865442-de89df76afd3.jpg',desc:'Ruime tas voor dagelijks gebruik met chique afwerking.'},
+      {id:11,name:'Wit linnen overhemd',brand:'Uniqlo',category:'Premium',condition:'Zo goed als nieuw',size:'M',gender:'Heren',price:18,likes:12,seller:'Bram',rating:'4,9',city:'Tilburg',tag:'Essential',image:'assets/1512436991641-6745cdb1723f.jpg',desc:'Luchtig overhemd dat moeiteloos past bij iedere garderobe.'},
+      {id:12,name:'Statement oorbellen set',brand:'& Other Stories',category:'Accessoires',condition:'Zo goed als nieuw',size:'One size',gender:'Dames',price:14,likes:9,seller:'Roos',rating:'4,8',city:'Leiden',tag:'Nieuw',image:'assets/1617038220319-276d3cfab638.jpg',desc:'Mooie accessoireset voor een snelle add-on aankoop .'}
+    ];
+
+    const state = {
+      query:'',
+      category:'Alles',
+      topFilter:'alles',
+      brand:'',
+      condition:'',
+      minPrice:'',
+      maxPrice:'',
+      sort:'popular',
+      currentView:'all'
+    };
+
+    const favorites = new Set();
+    const orders = [];
+    const sold = new Set();
+    const messages = [
+      {id:1,mine:false,text:'Hoi! Dit item is nog beschikbaar en kan morgen verzonden worden.'},
+      {id:1,mine:true,text:'Top, dankjewel! Kan ik veilig via het platform betalen?'},
+      {id:1,mine:false,text:'Ja zeker, de betaling en kopersbescherming lopen via het platform.'}
+    ];
+    let currentItem = null;
+    let uploadData = '';
+    let user = 'Alex';
+
+    function eur(v){return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(v)}
+    function esc(s){return String(s??'').replace(/[&<>\"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]))}
+    function icon(name){
+      const icons={
+        heart:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21s-6.7-4.35-9.1-8.02C.94 10.3 1.41 6.7 4.18 4.93 6.2 3.64 8.8 4 10.5 5.7L12 7.2l1.5-1.5c1.7-1.7 4.3-2.06 6.32-.77 2.77 1.77 3.24 5.37 1.28 8.05C18.7 16.65 12 21 12 21z"></path></svg>',
+        heartFill:'<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5"><path d="M12 21s-6.7-4.35-9.1-8.02C.94 10.3 1.41 6.7 4.18 4.93 6.2 3.64 8.8 4 10.5 5.7L12 7.2l1.5-1.5c1.7-1.7 4.3-2.06 6.32-.77 2.77 1.77 3.24 5.37 1.28 8.05C18.7 16.65 12 21 12 21z"></path></svg>',
+        send:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>',
+        close:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18"></path><path d="M6 6l12 12"></path></svg>'
+      };
+      return icons[name]||'';
+    }
+    function fallbackImg(img){img.onerror=null;img.src='assets/fallback.svg';}
+    function toast(msg){
+      const el=document.getElementById('toast');
+      el.textContent=msg;
+      el.classList.add('show');
+      clearTimeout(window.toastTimer);
+      window.toastTimer=setTimeout(()=>el.classList.remove('show'),2200);
+    }
+    function renderSubnav(){
+      document.getElementById('subnav').innerHTML = navTabs.map(tab=>`<button class="${(tab.key==='home'&&state.category==='Alles')?'active':''}" onclick="quickNav('${tab.key}')">${tab.label}</button>`).join('');
+    }
+    function quickNav(key){
+      if(key==='home'){resetHome(); window.scrollTo({top:0,behavior:'smooth'}); return;}
+      if(key==='catalogus'){state.category='Alles';}
+      if(key==='dames'){state.topFilter='dames';}
+      if(key==='heren'){state.topFilter='heren';}
+      if(key==='accessoires'){state.category='Accessoires';}
+      if(key==='premium'){state.category='Premium';}
+      browseSection();
+      renderProducts();
+    }
+    function renderCategories(){
+      document.getElementById('categoryRow').innerHTML = categoryInfo.map(c=>`
+        <button class="cat-card" onclick="selectCategory('${esc(c.name)}')">
+          <div class="cat-visual"><img src="${categoryPhotos[c.name]}" alt="${esc(c.name)}" onerror="fallbackImg(this)"></div>
+          <h4>${esc(c.name)}</h4>
+          <p>${esc(c.desc)}</p>
+        </button>
+      `).join('');
+    }
+    function renderFilterBlocks(){
+      const cats=['Alles',...categoryInfo.map(c=>c.name)];
+      document.getElementById('catFilters').innerHTML = cats.map(c=>`<button class="filter-chip ${state.category===c?'active':''}" onclick="selectCategory('${esc(c)}')">${esc(c)}</button>`).join('');
+      const conditions=['Zo goed als nieuw','Zeer goed','Goed'];
+      document.getElementById('conditionFilters').innerHTML = conditions.map(c=>`<button class="filter-chip ${state.condition===c?'active':''}" onclick="toggleCondition('${esc(c)}')">${esc(c)}</button>`).join('');
+      const brands=['',...new Set(items.map(i=>i.brand))].sort((a,b)=>a.localeCompare(b));
+      document.getElementById('brandFilter').innerHTML = brands.map(b=>`<option value="${esc(b)}">${b?esc(b):'Alle merken'}</option>`).join('');
+      document.getElementById('brandFilter').value=state.brand;
+      document.getElementById('topFilters').innerHTML = [
+        {key:'alles',label:'Alles'},
+        {key:'dames',label:'Dames'},
+        {key:'heren',label:'Heren'},
+        {key:'unisex',label:'Unisex'},
+        {key:'premium',label:'Premium look'}
+      ].map(f=>`<button class="pill ${state.topFilter===f.key?'active':''}" onclick="setTopFilter('${f.key}')">${f.label}</button>`).join('');
+    }
+    function setTopFilter(key){state.topFilter=key; renderProducts(); renderFilterBlocks();}
+    function toggleCondition(cond){state.condition = state.condition===cond ? '' : cond; renderProducts(); renderFilterBlocks();}
+    function selectCategory(cat){state.category=cat; browseSection(); renderProducts(); renderFilterBlocks();}
+    function clearFilters(keepQuery=false){
+      state.category='Alles'; state.topFilter='alles'; state.brand=''; state.condition=''; state.minPrice=''; state.maxPrice=''; state.sort='popular'; state.currentView='all';
+      document.getElementById('sortSelect').value='popular';
+      document.getElementById('brandFilter').value='';
+      document.getElementById('minPrice').value='';
+      document.getElementById('maxPrice').value='';
+      if(!keepQuery){state.query=''; document.getElementById('globalSearch').value='';}
+      renderProducts(); renderFilterBlocks();
+    }
+    function browseSection(){document.getElementById('browseSection').scrollIntoView({behavior:'smooth',block:'start'})}
+    function resetHome(){
+      clearFilters();
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    function filteredItems(){
+      let list=items.filter(i=>!sold.has(i.id));
+      if(state.currentView==='favorites') list=list.filter(i=>favorites.has(i.id));
+      if(state.query){
+        const q=state.query.toLowerCase();
+        list=list.filter(i=>[i.name,i.brand,i.category,i.seller,i.gender].join(' ').toLowerCase().includes(q));
+      }
+      if(state.category!=='Alles') list=list.filter(i=>i.category===state.category);
+      if(state.topFilter==='dames') list=list.filter(i=>i.gender==='Dames');
+      if(state.topFilter==='heren') list=list.filter(i=>i.gender==='Heren');
+      if(state.topFilter==='unisex') list=list.filter(i=>i.gender==='Unisex');
+      if(state.topFilter==='premium') list=list.filter(i=>['Premium','Tassen','Jurken'].includes(i.category) || i.price>=35);
+      if(state.brand) list=list.filter(i=>i.brand===state.brand);
+      if(state.condition) list=list.filter(i=>i.condition===state.condition);
+      if(state.minPrice!=='' && !isNaN(+state.minPrice)) list=list.filter(i=>i.price>=+state.minPrice);
+      if(state.maxPrice!=='' && !isNaN(+state.maxPrice)) list=list.filter(i=>i.price<=+state.maxPrice);
+      if(state.sort==='low') list.sort((a,b)=>a.price-b.price);
+      else if(state.sort==='high') list.sort((a,b)=>b.price-a.price);
+      else if(state.sort==='new') list.sort((a,b)=>b.id-a.id);
+      else list.sort((a,b)=>(b.likes+b.price*.1)-(a.likes+a.price*.1));
+      return list;
+    }
+    function renderProducts(){
+      renderFilterBlocks();
+      const list=filteredItems();
+      document.getElementById('resultCount').textContent = `${list.length} ${list.length===1?'item':'items'}`;
+      const grid=document.getElementById('productGrid');
+      if(!list.length){
+        grid.innerHTML=`<div class="empty" style="grid-column:1/-1"><h3>Geen items gevonden</h3><p>Pas je filters aan of reset ze om meer resultaten te tonen.</p></div>`;
+        return;
+      }
+      grid.innerHTML=list.map(item=>`
+        <article class="product-card" onclick="openProduct(${item.id})">
+          <div class="product-media">
+            <span class="label-badge">${esc(item.tag)}</span>
+            <button class="save-btn ${favorites.has(item.id)?'active':''}" onclick="event.stopPropagation(); toggleFavorite(${item.id})">${favorites.has(item.id)?icon('heartFill'):icon('heart')}</button>
+            <img src="${item.image}" alt="${esc(item.name)}" onerror="fallbackImg(this)">
+          </div>
+          <div class="product-body">
+            <div class="price-row">
+              <div class="price">${eur(item.price)}</div>
+              <div class="like-note">${item.likes} likes</div>
+            </div>
+            <div class="product-title">${esc(item.name)}</div>
+            <div class="product-meta">${esc(item.brand)} · ${esc(item.size)} · ${esc(item.condition)}</div>
+            <div class="product-meta">${esc(item.category)} · ${esc(item.city)}</div>
+            <div class="seller-row">
+              <div class="seller-mini">
+                <div class="avatar">${esc(item.seller.slice(0,1).toUpperCase())}</div>
+                <div>
+                  <div class="seller-name">${esc(item.seller)}</div>
+                  <div class="seller-rating">★ ${esc(item.rating)}</div>
+                </div>
+              </div>
+              <button class="btn-soft" style="padding:9px 12px" onclick="event.stopPropagation(); openChat(${item.id})">Bericht</button>
+            </div>
+          </div>
+        </article>
+      `).join('');
+    }
+    function toggleFavorite(id){
+      favorites.has(id)?favorites.delete(id):favorites.add(id);
+      renderProducts();
+      toast(favorites.has(id)?'Toegevoegd aan favorieten':'Verwijderd uit favorieten');
+    }
+    function showFavorites(){clearFilters(); state.currentView='favorites'; browseSection(); renderProducts();}
+    function modal(html,narrow=false){
+      const wrap=document.getElementById('modal');
+      wrap.className='modal'+(narrow?' narrow':'');
+      wrap.innerHTML=`<button class="close-btn" aria-label="Sluiten" onclick="closeModal()">${icon('close')}</button>`+html;
+      document.getElementById('overlay').classList.add('show');
+      document.body.style.overflow='hidden';
+    }
+    function closeModal(){document.getElementById('overlay').classList.remove('show');document.body.style.overflow='';}
+    function openProduct(id){
+      const item=items.find(i=>i.id===id); currentItem=item;
+      modal(`
+        <div class="detail-grid">
+          <div class="detail-media"><img src="${item.image}" alt="${esc(item.name)}" onerror="fallbackImg(this)"></div>
+          <div class="detail-side">
+            <div class="detail-topline">
+              <span class="status-pill">${esc(item.tag)}</span>
+              <span class="badge"><span class="badge-dot"></span> Veilige betaalflow</span>
+            </div>
+            <h2>${esc(item.name)}</h2>
+            <p class="detail-sub">${esc(item.brand)} · ${esc(item.category)} · ${esc(item.condition)} · ${esc(item.city)}</p>
+            <div class="detail-price">${eur(item.price)}</div>
+            <div class="detail-small">Totaal met kopersbescherming en verzending zichtbaar in checkout.</div>
+            <div class="fact-grid">
+              <div class="fact-box"><div class="fact-label">Merk</div><div class="fact-value">${esc(item.brand)}</div></div>
+              <div class="fact-box"><div class="fact-label">Maat</div><div class="fact-value">${esc(item.size)}</div></div>
+              <div class="fact-box"><div class="fact-label">Doelgroep</div><div class="fact-value">${esc(item.gender)}</div></div>
+              <div class="fact-box"><div class="fact-label">Staat</div><div class="fact-value">${esc(item.condition)}</div></div>
+            </div>
+            <div class="detail-actions">
+              <button class="btn" onclick="checkout(${item.id})">Nu kopen</button>
+              <button class="btn-outline" onclick="openChat(${item.id})">Stuur een bericht</button>
+              <button class="btn-soft" onclick="toggleFavorite(${item.id}); openProduct(${item.id})">${favorites.has(item.id)?'♥ Opgeslagen':'♡ Bewaar item'}</button>
+              <button class="btn-soft" onclick="closeModal(); openSell()">Verkoop iets soortgelijks</button>
+            </div>
+            <div class="description-box"><p>${esc(item.desc)}</p></div>
+            <div class="seller-box" style="margin-top:16px">
+              <div class="seller-mini">
+                <div class="avatar" style="width:42px;height:42px">${esc(item.seller.slice(0,1).toUpperCase())}</div>
+                <div>
+                  <div class="seller-name">${esc(item.seller)}</div>
+                  <div class="seller-rating">★ ${esc(item.rating)}</div>
+                </div>
+              </div>
+              <button class="btn-outline" onclick="openChat(${item.id})">Open chat</button>
+            </div>
+          </div>
+        </div>
+      `);
+    }
+    function checkout(id){
+      const item=items.find(i=>i.id===id);
+      const fee=(1.49+item.price*0.05);
+      modal(`
+        <h2 style="margin:0 0 18px;font-size:30px;letter-spacing:-1px">Veilig afrekenen</h2>
+        <div class="mini-card-row">
+          <div class="thumb"><img src="${item.image}" alt="${esc(item.name)}" onerror="fallbackImg(this)"></div>
+          <div>
+            <div class="seller-name" style="font-size:18px">${esc(item.name)}</div>
+            <div class="product-meta">${esc(item.brand)} · ${esc(item.size)} · ${esc(item.condition)}</div>
+          </div>
+        </div>
+        <label class="field-label">Naam</label>
+        <input class="field" value="${esc(user)}">
+        <label class="field-label">E-mailadres</label>
+        <input class="field" type="email" placeholder="jouw@email.nl">
+        <label class="field-label">Verzendmethode</label>
+        <select id="shipMethod" class="select" onchange="updateCheckoutTotal(${item.price},${fee.toFixed(2)})">
+          <option value="3.95">Pakketpunt — € 3,95</option>
+          <option value="5.95">Thuisbezorging — € 5,95</option>
+        </select>
+        <label class="field-label">Betaalmethode</label>
+        <select class="select"><option>iDEAL</option><option>PayPal</option><option>Creditcard</option></select>
+        <div class="summary-line"><span>Artikel</span><strong>${eur(item.price)}</strong></div>
+        <div class="summary-line"><span>Kopersbescherming</span><strong>${eur(fee)}</strong></div>
+        <div class="summary-line"><span>Verzending</span><strong id="shipPrice">${eur(3.95)}</strong></div>
+        <div class="summary-line total"><span>Totaal</span><strong id="checkoutTotal">${eur(item.price+fee+3.95)}</strong></div>
+        <div class="notice" style="margin-top:18px"><strong>Testbetaling</strong><p>Er wordt geen echte betaling uitgevoerd.</p></div>
+        <button class="btn" style="width:100%;margin-top:18px" onclick="finishOrder(${item.id})">Simuleer betaling</button>
+      `,true);
+    }
+    function updateCheckoutTotal(price,fee){
+      const ship=+document.getElementById('shipMethod').value;
+      document.getElementById('shipPrice').textContent=eur(ship);
+      document.getElementById('checkoutTotal').textContent=eur(price + (+fee) + ship);
+    }
+    function finishOrder(id){
+      const item=items.find(i=>i.id===id);
+      if(!orders.includes(item)) orders.push(item);
+      sold.add(id);
+      renderProducts();
+      modal(`
+        <div style="text-align:center;padding:20px 6px 10px">
+          <div style="width:74px;height:74px;border-radius:999px;background:#e9f6f1;display:grid;place-items:center;margin:0 auto 16px;font-size:34px;color:var(--green-dark)">✓</div>
+          <h2 style="margin:0 0 8px;font-size:30px;letter-spacing:-1px">Bestelling geplaatst</h2>
+          <p style="margin:0;color:var(--muted);line-height:1.65">De verkoper ontvangt een melding en kan nu de zending bevestigen. Dit is een testbestelling; er wordt niets verzonden.</p>
+          <button class="btn" style="width:100%;margin-top:18px" onclick="closeModal()">Verder shoppen</button>
+        </div>
+      `,true);
+    }
+    function openSell(){
+      uploadData='';
+      modal(`
+        <h2 style="margin:0 0 10px;font-size:30px;letter-spacing:-1px">Plaats een item</h2>
+        <p class="detail-sub">Geef je kleding een tweede leven. Plaats je item in een paar stappen.</p>
+        <label class="upload-box" id="uploadBox">
+          <input type="file" accept="image/*" onchange="handleUpload(this)">
+          <div id="uploadContent">
+            <div style="font-size:40px;margin-bottom:8px">＋</div>
+            <strong>Voeg productfoto toe</strong>
+            <div class="helper" style="margin-top:6px">Voeg een duidelijke foto van je artikel toe</div>
+          </div>
+        </label>
+        <label class="field-label">Titel</label>
+        <input class="field" id="sellName" placeholder="Bijv. oversized blazer" required>
+        <label class="field-label">Beschrijving</label>
+        <textarea class="textarea" id="sellDesc" placeholder="Vertel iets over de staat, pasvorm en uitstraling"></textarea>
+        <div class="grid-2">
+          <div>
+            <label class="field-label">Categorie</label>
+            <select class="select" id="sellCategory">${categoryInfo.map(c=>`<option>${esc(c.name)}</option>`).join('')}</select>
+          </div>
+          <div>
+            <label class="field-label">Merk</label>
+            <input class="field" id="sellBrand" placeholder="Bijv. Zara">
+          </div>
+          <div>
+            <label class="field-label">Maat</label>
+            <select class="select" id="sellSize">${['XS','S','M','L','XL','One size','40','42'].map(x=>`<option>${x}</option>`).join('')}</select>
+          </div>
+          <div>
+            <label class="field-label">Staat</label>
+            <select class="select" id="sellCondition"><option>Zo goed als nieuw</option><option>Zeer goed</option><option>Goed</option></select>
+          </div>
+          <div>
+            <label class="field-label">Doelgroep</label>
+            <select class="select" id="sellGender"><option>Dames</option><option>Heren</option><option>Unisex</option></select>
+          </div>
+          <div>
+            <label class="field-label">Prijs (€)</label>
+            <input class="field" id="sellPrice" type="number" min="1" step="0.01" placeholder="29">
+          </div>
+        </div>
+        <button class="btn" style="width:100%;margin-top:18px" onclick="publishItem()">Plaats advertentie</button>
+      `,true);
+    }
+    function handleUpload(input){
+      const file=input.files && input.files[0];
+      if(!file) return;
+      const reader=new FileReader();
+      reader.onload=()=>{
+        uploadData=reader.result;
+        document.getElementById('uploadContent').innerHTML=`<img class="upload-preview" src="${uploadData}" alt="upload preview"><strong>Foto toegevoegd</strong><div class="helper" style="margin-top:6px">Klik opnieuw om een andere te kiezen</div>`;
+      };
+      reader.readAsDataURL(file);
+    }
+    function publishItem(){
+      const get=id=>document.getElementById(id).value.trim();
+      const name=get('sellName'); const brand=get('sellBrand'); const price=parseFloat(get('sellPrice')||'0');
+      if(!name || !brand || !Number.isFinite(price) || price<=0){toast('Vul minimaal titel, merk en prijs in'); return;}
+      items.unshift({
+        id:Date.now(),
+        name,
+        brand,
+        category:get('sellCategory'),
+        condition:get('sellCondition'),
+        size:get('sellSize'),
+        gender:get('sellGender'),
+        price,
+        likes:0,
+        seller:user||'Alex',
+        rating:'5,0',
+        city:'Tilburg',
+        tag:'Nieuw',
+        image:uploadData || 'assets/1529139574466-a303027c1d8b.jpg',
+        desc:get('sellDesc') || 'Een mooi item, klaar voor een tweede leven.'
+      });
+      closeModal();
+      clearFilters(); state.sort='new'; document.getElementById('sortSelect').value='new'; renderProducts();
+      browseSection();
+      toast('Je advertentie is geplaatst');
+    }
+    function openAccount(){
+      modal(`
+        <h2 style="margin:0 0 10px;font-size:30px;letter-spacing:-1px">Welkom, ${esc(user)}</h2>
+        <p class="detail-sub">Beheer je advertenties, favorieten en bestellingen.</p>
+        <div class="summary-line"><span>Favorieten</span><strong>${favorites.size}</strong></div>
+        <div class="summary-line"><span>Bestellingen</span><strong>${orders.length}</strong></div>
+        <div class="summary-line"><span>Mijn advertenties</span><strong>${items.filter(i=>i.seller===user).length}</strong></div>
+        <div style="margin-top:18px;display:grid;gap:10px">
+          ${orders.length ? orders.map(item=>`<div class="mini-card-row"><div class="thumb"><img src="${item.image}" alt="${esc(item.name)}" onerror="fallbackImg(this)"></div><div><div class="seller-name">${esc(item.name)}</div><div class="product-meta">${eur(item.price)}</div><div style="margin-top:8px"><span class="status-pill">Testbestelling</span></div></div></div>`).join('') : '<div class="empty"><h3>Nog geen bestellingen</h3><p>Koop een item om hier een order te tonen.</p></div>'}
+        </div>
+        <div style="display:grid;gap:10px;margin-top:18px">
+          <button class="btn" onclick="closeModal(); openSell()">Nieuw item verkopen</button>
+          <button class="btn-outline" onclick="closeModal(); showFavorites()">Mijn favorieten</button>
+        </div>
+      `,true);
+    }
+    function openChat(id){
+      const item=items.find(i=>i.id===id);
+      modal(`
+        <h2 style="margin:0 0 8px;font-size:30px;letter-spacing:-1px">Chat met ${esc(item.seller)}</h2>
+        <p class="detail-sub">Over: ${esc(item.name)}</p>
+        <div class="chat-thread" id="chatThread">
+          ${messages.filter(m=>m.id===id).map(m=>`<div class="bubble ${m.mine?'mine':''}">${esc(m.text)}</div>`).join('') || '<div class="bubble">Hoi! Is dit item nog beschikbaar?</div>'}
+        </div>
+        <div class="grid-2" style="grid-template-columns:1fr auto">
+          <input class="field" id="chatInput" placeholder="Schrijf een bericht...">
+          <button class="btn" onclick="sendChat(${id})">${icon('send')} Verstuur</button>
+        </div>
+      `,true);
+    }
+    function sendChat(id){
+      const input=document.getElementById('chatInput');
+      const value=input.value.trim();
+      if(!value) return;
+      messages.push({id,mine:true,text:value});
+      openChat(id);
+      toast('Bericht toegevoegd');
+    }
+    function openMessages(){
+      const ids=[...new Set(messages.map(m=>m.id))];
+      modal(`
+        <h2 style="margin:0 0 14px;font-size:30px;letter-spacing:-1px">Berichten</h2>
+        <div style="display:grid;gap:10px">
+          ${ids.length ? ids.map(id=>{const item=items.find(i=>i.id===id); const last=messages.filter(m=>m.id===id).slice(-1)[0]; return `<button class="mini-card-row" onclick="openChat(${id})"><div class="thumb"><img src="${item.image}" alt="${esc(item.name)}" onerror="fallbackImg(this)"></div><div style="text-align:left"><div class="seller-name">${esc(item.seller)} · ${esc(item.name)}</div><div class="product-meta">${esc(last.text)}</div></div></button>`}).join('') : '<div class="empty"><h3>Nog geen gesprekken</h3><p>Stuur een verkoper een bericht over een artikel.</p></div>'}
+        </div>
+      `,true);
+    }
+
+    renderSubnav();
+    renderCategories();
+    renderFilterBlocks();
+    renderProducts();
+  </script>
+</body>
+</html>
